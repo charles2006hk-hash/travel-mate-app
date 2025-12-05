@@ -296,7 +296,6 @@ function TravelApp() {
 
   // --- 用戶與鎖定功能 ---
 
-  // 1. Google 帳號綁定 (防止數據丟失)
   const handleGoogleLink = async () => {
     try {
       if (user.isAnonymous) {
@@ -307,7 +306,6 @@ function TravelApp() {
       }
     } catch (error) {
       if (error.code === 'auth/credential-already-in-use') {
-        // 如果帳號已存在，則登入該帳號 (注意：這可能會切換使用者，需提醒)
         if(confirm("此 Google 帳號已有資料。是否切換到該帳號？(當前未綁定的資料可能會暫時看不到)")) {
            await signInWithPopup(auth, googleProvider);
         }
@@ -318,12 +316,11 @@ function TravelApp() {
     }
   };
 
-  // 2. 備份資料 (下載 JSON)
   const handleExportData = () => {
     const data = {
       user: user.uid,
       trips: trips,
-      items: items, // 這裡只導出當前已加載的 items，實作上最好是 fetch all，但在 dashboard 只能拿到 trips
+      items: items, 
       exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -334,7 +331,6 @@ function TravelApp() {
     a.click();
   };
 
-  // 3. 鎖定/解鎖行程
   const toggleTripLock = async () => {
     await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', currentTrip.id), {
       isLocked: !currentTrip.isLocked
@@ -342,7 +338,6 @@ function TravelApp() {
     setCurrentTrip(prev => ({...prev, isLocked: !prev.isLocked}));
   };
 
-  // 4. PDF 輸出
   const handlePrint = () => {
     window.print();
   };
@@ -715,13 +710,37 @@ function TravelApp() {
         </div>
       </div>
 
-      {/* 列印專用 Header */}
-      <div className="hidden print:block p-8 pb-4 border-b">
-         <h1 className="text-3xl font-bold text-gray-800">{currentTrip.destination} 旅遊手冊</h1>
-         <p className="text-gray-500 mt-2">{currentTrip.startDate} ~ {currentTrip.endDate} | 共 {newTrip.budgetDetails.days || '多'} 天</p>
+      {/* 列印專用 Header - 強化版 */}
+      <div className="hidden print:block p-10 pb-6 font-serif">
+         <div className="text-center border-b-2 border-gray-800 pb-6 mb-8">
+             <h1 className="text-4xl font-bold text-gray-900 mb-4">
+               {user?.displayName || '旅客'} 的 {Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1)}天 {currentTrip.destination} 之旅
+             </h1>
+             <p className="text-xl text-gray-600">
+               {currentTrip.startDate} 至 {currentTrip.endDate}
+             </p>
+         </div>
+         
+         {/* 旅程概覽 (列印專用) */}
+         <div className="mb-8 p-6 bg-gray-50 border rounded-xl flex justify-between items-center">
+            <div>
+               <p className="text-sm text-gray-500 uppercase tracking-wide">旅遊預算</p>
+               <p className="text-2xl font-bold text-green-700">${currentTrip.estimatedBudget?.toLocaleString()}</p>
+            </div>
+            <div>
+               <p className="text-sm text-gray-500 uppercase tracking-wide">預計總支出</p>
+               <p className="text-2xl font-bold text-blue-700">${budgetStats.total.toLocaleString()}</p>
+            </div>
+            <div>
+               <p className="text-sm text-gray-500 uppercase tracking-wide">剩餘預算</p>
+               <p className="text-2xl font-bold text-gray-700">${(currentTrip.estimatedBudget - budgetStats.total).toLocaleString()}</p>
+            </div>
+         </div>
+         
+         <h2 className="text-2xl font-bold mb-4 border-b pb-2 flex items-center gap-2">🗓️ 詳細行程表</h2>
       </div>
 
-      <div className="flex-1 max-w-4xl mx-auto w-full p-4 space-y-6 print:p-8">
+      <div className="flex-1 max-w-4xl mx-auto w-full p-4 space-y-6 print:p-8 print:pt-0">
         
         {/* 打卡彈窗 */}
         {checkInModal && (
@@ -758,7 +777,7 @@ function TravelApp() {
                const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
                
                return (
-                 <div key={dateStr} className="bg-white rounded-xl border p-4 print:border-none print:p-0 print:mb-8">
+                 <div key={dateStr} className="bg-white rounded-xl border p-4 print:border-none print:p-0 print:mb-8 break-inside-avoid">
                     <div className="flex justify-between items-center mb-4 pb-2 border-b print:border-gray-300">
                        <div><h3 className="font-bold text-gray-800 text-lg">Day {idx+1}</h3><div className="text-xs text-gray-400 print:text-gray-600">{dateStr}</div></div>
                        <div className="flex gap-2 print:hidden">
@@ -784,8 +803,8 @@ function TravelApp() {
 
         {/* 3. 行李 (列印時也顯示) */}
         {(activeTab === 'packing' || typeof window !== 'undefined' && window.matchMedia('print').matches) && (
-          <div className="print:mt-8">
-            <h2 className="hidden print:block text-xl font-bold mb-4 border-b pb-2">行李清單</h2>
+          <div className="print:mt-8 break-before-page">
+            <h2 className="hidden print:block text-2xl font-bold mb-4 border-b pb-2 flex items-center gap-2">🧳 行李檢查清單</h2>
             <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center mb-4 print:hidden">
                <div><div className="font-bold text-indigo-800">行李總重 {luggageStats.totalWeight} kg</div><div className="text-xs text-indigo-500">建議：{luggageStats.suggestion}</div></div>
                <Briefcase size={24} className="text-indigo-300"/>
@@ -803,10 +822,10 @@ function TravelApp() {
                         <div key={item.id} className="flex items-center gap-3 mb-2 print:mb-1">
                            <button onClick={() => toggleItemComplete(item)} className={`print:hidden ${item.completed ? 'text-green-500' : 'text-gray-300'}`}><CheckCircle2 size={20}/></button>
                            <div className="p-2 bg-gray-50 rounded-full text-gray-500 print:hidden"><DefIcon size={16}/></div>
-                           <span className="print:inline-block print:w-4 print:h-4 print:border print:mr-2"></span>
+                           <span className="hidden print:inline-block w-4 h-4 border border-gray-400 mr-2"></span>
                            <div className="flex-1 flex justify-between">
                               <span className={`text-sm font-medium ${item.completed ? 'line-through text-gray-300' : 'text-gray-800'} print:no-underline print:text-black`}>{item.title}</span>
-                              <span className="text-xs bg-gray-100 px-2 py-1 rounded print:bg-transparent print:border">x{item.quantity}</span>
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded print:bg-transparent print:border print:border-gray-300">x{item.quantity}</span>
                            </div>
                            {!currentTrip.isLocked && <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 print:hidden"><button onClick={() => updateQuantity(item, -1)} className="text-gray-400 hover:text-blue-500"><Minus size={12}/></button><button onClick={() => updateQuantity(item, 1)} className="text-gray-400 hover:text-blue-500"><Plus size={12}/></button></div>}
                         </div>
@@ -891,6 +910,12 @@ function TravelApp() {
             </div>
           </form>
         )}
+
+        {/* 列印專用 Footer - 祝福語 */}
+        <div className="hidden print:block mt-12 pt-8 border-t-2 border-gray-100 text-center break-inside-avoid">
+            <p className="text-2xl font-bold text-gray-800 italic font-serif">"祝您旅途愉快，一路順風！"</p>
+            <p className="text-gray-400 mt-4 text-sm">Created with 智能旅遊管家</p>
+        </div>
       </div>
     </div>
   );
