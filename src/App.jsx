@@ -1,16 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithPopup } from "firebase/auth";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from "firebase/firestore";
 import { 
   Trash2, Plus, Minus, MapPin, Calendar as CalIcon, CheckCircle2, Circle, 
-  DollarSign, FileText, Sun, CloudRain, Snowflake, Cloud, Droplets, 
+  DollarSign, FileText, Sun, CloudRain, Snowflake, Cloud, Droplets, Wind,
   Luggage, Plane, Baby, Accessibility, User, Navigation,
-  MapPin as MapPinIcon, Camera, ShoppingBag,
+  History, MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
-  ExternalLink, Clock, Search, Utensils, Siren, Ambulance, Car,
-  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight,
-  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Ticket, Phone, ArrowRight, Star, BedDouble, Mountain
+  ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car,
+  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight, Share,
+  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Bed, Ticket, Phone, ArrowRight, Star, BedDouble
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -33,28 +33,37 @@ const APP_ID = "travel-mate-app-7ca34";
 
 // --- 3. 資料庫與常數 ---
 
+// 天氣圖示映射表
+const WEATHER_ICONS = {
+  'Sun': Sun, 'CloudRain': CloudRain, 'Snowflake': Snowflake, 'Cloud': Cloud, 'Droplets': Droplets, 'Wind': Wind
+};
+
 const CITY_DATA = {
-  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80", intro: "傳統與未來交織的城市。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
-  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", intro: "美食之都。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
-  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&q=80", intro: "千年古都。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi / Uber" },
-  "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1516900557549-41557d405adf?w=400&q=80", intro: "北國雪景。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1570459027562-4a916cc6113f?w=400&q=80", intro: "九州門戶。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1538669716383-71cc735d4872?w=400&q=80", intro: "韓流中心。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T / Uber" },
-  "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1596788502256-4c4f9273c3cb?w=400&q=80", intro: "海港城市。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
-  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", img: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?w=400&q=80", intro: "美食天堂。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688" },
-  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", img: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=400&q=80", intro: "不夜城。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab / Bolt" },
-  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80", intro: "歷史名城。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / Bolt / Addison Lee" },
-  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80", intro: "浪漫之都。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber / Bolt / G7" },
-  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", img: "https://images.unsplash.com/photo-1518599801797-737c8d02e8e7?w=400&q=80", intro: "東方之珠。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / HKTaxi" },
-  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", intro: "澳洲最大城市。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
-  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1510265119258-db115b0e8172?w=400&q=80", intro: "文化與咖啡之都。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
-  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1562657523-2679c2937397?w=400&q=80", intro: "陽光之城。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
-  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=400&q=80", intro: "衝浪者天堂。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
+  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
+  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
+  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&q=80", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi / Uber" },
+  "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1516900557549-41557d405adf?w=400&q=80", intro: "北國雪景與美食，冬季必訪大通公園雪祭。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1570459027562-4a916cc6113f?w=400&q=80", intro: "九州門戶，屋台文化與豚骨拉麵的發源地。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1538669716383-71cc735d4872?w=400&q=80", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T / Uber" },
+  "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1596788502256-4c4f9273c3cb?w=400&q=80", intro: "海港城市，海雲台沙灘與甘川洞文化村。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
+  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", img: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?w=400&q=80", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688 / yoxi" },
+  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", img: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=400&q=80", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab / Bolt" },
+  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / Bolt / Addison Lee" },
+  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber / Bolt / G7" },
+  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", img: "https://images.unsplash.com/photo-1518599801797-737c8d02e8e7?w=400&q=80", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / HKTaxi" },
+  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", intro: "澳洲最大城市，雪梨歌劇院與港灣大橋是世界級地標。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi / Ola" },
+  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1510265119258-db115b0e8172?w=400&q=80", intro: "澳洲文化與咖啡之都，充滿藝術巷弄與維多利亞式建築。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi / 13CABS" },
+  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1562657523-2679c2937397?w=400&q=80", intro: "陽光之城，擁有美麗的南岸公園與考拉保護區。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
+  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=400&q=80", intro: "衝浪者的天堂，擁有綿延的沙灘與多個主題樂園。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
 };
 
 const POPULAR_CITIES = Object.keys(CITY_DATA);
 const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約", "雪梨", "墨爾本"];
-const EXCHANGE_RATES = { "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1, "AUD": 5.1 };
+
+const EXCHANGE_RATES = { 
+  "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, 
+  "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1, "AUD": 5.1 
+};
 
 const PURPOSE_MULTIPLIERS = {
   "sightseeing": { flight: 1, hotel: 1, food: 1, transport: 1.2, shopping: 2000, label: "觀光打卡", icon: Camera, desc: "輕鬆遊覽名勝古蹟" }, 
@@ -180,14 +189,20 @@ const generateSmartItinerary = (city, days, purpose, travelers) => {
   return itinerary;
 };
 
+// 修正: 儲存 icon 字串而非元件
 const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
     const res = await fetch(url); const data = await res.json(); const weatherMap = {};
     if (data.daily) data.daily.time.forEach((date, i) => {
-       const code = data.daily.weathercode[i]; let icon = Sun; let desc = "晴";
-       if (code >= 95) { icon = CloudRain; desc = "雷雨"; } else if (code >= 51) { icon = Droplets; desc = "雨"; } else if (code >= 3) { icon = Cloud; desc = "陰"; }
-       weatherMap[date] = { max: data.daily.temperature_2m_max[i], min: data.daily.temperature_2m_min[i], rain: data.daily.precipitation_probability_max[i], icon, desc };
+       const code = data.daily.weathercode[i]; 
+       let iconKey = 'Sun'; let desc = "晴";
+       if (code >= 95) { iconKey = 'CloudRain'; desc = "雷雨"; } 
+       else if (code >= 71) { iconKey = 'Snowflake'; desc = "雪"; } 
+       else if (code >= 51) { iconKey = 'Droplets'; desc = "雨"; } 
+       else if (code >= 3) { iconKey = 'Cloud'; desc = "陰"; } 
+       else if (code >= 1) { iconKey = 'Cloud'; desc = "多雲"; }
+       weatherMap[date] = { max: data.daily.temperature_2m_max[i], min: data.daily.temperature_2m_min[i], rain: data.daily.precipitation_probability_max[i], iconKey, desc };
     });
     return weatherMap;
   } catch (e) { return {}; }
@@ -260,7 +275,7 @@ function TravelApp() {
   useEffect(() => { if (newTrip.destination && newTrip.startDate && newTrip.endDate) calculateEstimatedBudget(); }, [newTrip.destination, newTrip.startDate, newTrip.endDate, newTrip.travelers, newTrip.purpose, newTrip.flightType, newTrip.hotelType]);
 
   // CRUD & Actions
-  const handleGoogleLink = async () => { try { if (user.isAnonymous) await linkWithPopup(user, googleProvider); else showToast("已登入", "success"); } catch (error) { if (error.code === 'auth/credential-already-in-use') { if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider); } } };
+  const handleGoogleLink = async () => { try { if (user.isAnonymous) await linkWithPopup(user, googleProvider); else showToast("已登入", "success"); } catch (error) { if (error.code === 'auth/credential-already-in-use') { if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider); } else { showToast("登入失敗，請確認瀏覽器是否阻擋彈窗", "error"); } } };
   const handleExportData = () => { const data = { user: user.uid, trips: trips, items: items, exportedAt: new Date().toISOString() }; const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `travel_backup.json`; a.click(); };
   const toggleTripLock = async () => { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', currentTrip.id), { isLocked: !currentTrip.isLocked }); setCurrentTrip(prev => ({...prev, isLocked: !prev.isLocked})); showToast(currentTrip.isLocked ? "行程已解鎖" : "行程已鎖定", "success"); };
   const handlePrint = () => window.print();
@@ -302,7 +317,6 @@ function TravelApp() {
   const openTrip = (trip) => { setCurrentTrip(trip); setView('trip-detail'); setNewItem({ ...newItem, date: trip.startDate, currency: CITY_DATA[trip.destination]?.currency || 'HKD' }); };
   const handleForeignCostChange = (amount, currency) => { const rate = EXCHANGE_RATES[currency] || 1; setNewItem(prev => ({ ...prev, foreignCost: amount, currency: currency, cost: Math.round(amount * rate) })); };
   
-  // FIX: weight/volume default value issue
   const addItem = async (e) => {
     if(e) e.preventDefault();
     if ((!newItem.title && !newItem.pName) && !checkInModal) return; if (currentTrip.isLocked) return showToast("已鎖定", "error");
@@ -313,7 +327,6 @@ function TravelApp() {
     let finalNotes = newItem.notes; 
     if (newItem.foreignCost && newItem.currency !== 'HKD') finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${finalNotes}`;
     
-    // FIX: Ensure numeric fields are never undefined
     const payload = { 
         ...newItem, 
         notes: finalNotes, 
@@ -376,9 +389,7 @@ function TravelApp() {
   );
 
   const ReportTemplate = () => {
-    // Safety check
     if (!currentTrip) return null;
-    
     const dayDiff = Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1);
     const dateArray = Array.from({length: dayDiff}).map((_, i) => new Date(new Date(currentTrip.startDate).getTime() + i * 86400000).toISOString().split('T')[0]);
     return (
@@ -394,10 +405,15 @@ function TravelApp() {
                <div className="space-y-6">
                   {dateArray.map((dateStr, idx) => {
                      const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
+                     const w = weatherData[dateStr];
+                     const WeatherIcon = w ? WEATHER_ICONS[w.iconKey] : Sun;
                      return (
                         <div key={dateStr} className="relative pl-4 border-l-2 border-gray-200 break-inside-avoid">
                            <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-blue-600"></div>
-                           <div className="flex justify-between items-center mb-2"><h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Day {idx+1} • {dateStr}</h3></div>
+                           <div className="flex justify-between items-center mb-2">
+                              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Day {idx+1} • {dateStr}</h3>
+                              {w && <div className="flex items-center gap-1 text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded-full"><WeatherIcon size={12}/> {w.desc}</div>}
+                           </div>
                            {dayItems.map(item => (<div key={item.id} className="text-sm"><span className="font-bold text-gray-800 mr-2">{item.startTime || '待定'}</span><span className="text-gray-700">{item.title}</span></div>))}
                         </div>
                      )
@@ -406,28 +422,8 @@ function TravelApp() {
             </div>
             <div className="w-[35%] space-y-8">
                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 break-inside-avoid"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-sm uppercase"><Calculator size={14}/> 財務概況</h3><div className="space-y-2 text-sm"><div className="flex justify-between"><span>總預算</span><span className="font-bold">${currentTrip.estimatedBudget?.toLocaleString()}</span></div><div className="flex justify-between text-blue-600"><span>預計支出</span><span className="font-bold">${budgetStats.total.toLocaleString()}</span></div></div></div>
-               {/* Report: People List */}
-               <div className="break-inside-avoid">
-                  <h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Users size={14}/> 同行人員</h3>
-                  <div className="text-xs text-gray-600 space-y-2">
-                     {items.filter(i => i.type === 'people').map(p => (
-                        <div key={p.id} className="flex justify-between border-b border-gray-100 pb-1">
-                           <span className="font-bold">{p.title}</span>
-                           <span className="text-gray-400">{p.notes?.split(' ')[1]}</span>
-                        </div>
-                     ))}
-                  </div>
-               </div>
-               <div className="break-inside-avoid">
-                  <h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Briefcase size={14}/> 必帶物品</h3>
-                  <div className="text-xs text-gray-600 space-y-1">
-                     {items.filter(i => i.type === 'packing').map(item => (
-                        <div key={item.id} className="flex items-center gap-2">
-                           <div className="w-3 h-3 border border-gray-400 rounded-sm"></div><span>{item.title}</span>{item.quantity > 1 && <span className="text-gray-400">x{item.quantity}</span>}
-                        </div>
-                     ))}
-                  </div>
-               </div>
+               <div className="break-inside-avoid"><h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Users size={14}/> 同行人員</h3><div className="text-xs text-gray-600 space-y-2">{items.filter(i => i.type === 'people').map(p => (<div key={p.id} className="flex justify-between border-b border-gray-100 pb-1"><span className="font-bold">{p.title}</span><span className="text-gray-400">{p.notes?.split(' ')[1]}</span></div>))}</div></div>
+               <div className="break-inside-avoid"><h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Briefcase size={14}/> 必帶物品</h3><div className="text-xs text-gray-600 space-y-1">{items.filter(i => i.type === 'packing').map(item => (<div key={item.id} className="flex items-center gap-2"><div className="w-3 h-3 border border-gray-400 rounded-sm"></div><span>{item.title}</span>{item.quantity > 1 && <span className="text-gray-400">x{item.quantity}</span>}</div>))}</div></div>
             </div>
          </div>
       </div>
@@ -593,6 +589,12 @@ function TravelApp() {
   // Trip Detail View
   const tripItems = items.filter(i => i.type === activeTab);
   const citySpots = POI_DB[currentTrip.destination] || POI_DB['default'];
+  
+  // 天氣圖示轉換 (避免直接存元件)
+  const WeatherIconComponent = ({ iconName }) => {
+      const Icon = WEATHER_ICONS[iconName] || Sun;
+      return <Icon size={14} />;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col bg-white">
@@ -628,7 +630,7 @@ function TravelApp() {
           </div>
         )}
 
-        {/* Spot Selector Modal (從推薦加入) */}
+        {/* Spot Selector Modal */}
         {showSpotSelector && (
            <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
               <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto flex flex-col shadow-2xl">
@@ -646,8 +648,7 @@ function TravelApp() {
 
         {activeTab === 'itinerary' && (
           <div className="space-y-6">
-            {/* Emergency & Ride Cards */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-4 print:hidden">
                <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex flex-col gap-2">
                   <div className="text-xs text-red-500 font-bold flex items-center gap-1"><Siren size={12}/> 緊急電話</div>
                   <div className="flex gap-2">
@@ -662,23 +663,33 @@ function TravelApp() {
             </div>
             <div className="flex gap-2 print:hidden"><button onClick={handleCheckIn} className={`flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-md text-sm font-bold flex gap-2 items-center justify-center ${currentTrip.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={currentTrip.isLocked}><Camera size={18} /> 足跡打卡</button></div>
             
-            {/* Day Lists */}
             {Array.from({length: Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1)}).map((_, idx) => {
                const dateStr = new Date(new Date(currentTrip.startDate).getTime() + idx * 86400000).toISOString().split('T')[0];
                const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
                const w = weatherData[dateStr];
+               
                return (
                  <div key={dateStr} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4 pb-2 border-b">
                        <div><h3 className="font-bold text-gray-800 text-lg">Day {idx+1}</h3><div className="text-xs text-gray-400">{dateStr}</div></div>
-                       <div className="flex items-center gap-2">{w ? (<div className="flex items-center gap-1 text-xs bg-blue-50 px-2 py-1 rounded-full text-blue-600 font-bold"><w.icon size={14}/> {w.desc} {w.max}°</div>) : <span className="text-xs text-gray-300">預報未出</span>}<div className="flex gap-2 print:hidden"><button onClick={() => openGoogleMapsRoute(dateStr)} className="text-blue-500 text-xs flex items-center gap-1 border border-blue-200 px-2 py-1 rounded hover:bg-blue-50"><Map size={12}/> 路線</button>{!currentTrip.isLocked && <button onClick={() => { setNewItem({...newItem, date: dateStr, type: 'itinerary'}); window.scrollTo({top: 0, behavior: 'smooth'}); }} className="text-gray-400 hover:text-blue-500"><Plus size={16}/></button>}</div></div>
+                       <div className="flex items-center gap-2">
+                           {w ? (
+                             <div className="flex items-center gap-1 text-xs bg-blue-50 px-2 py-1 rounded-full text-blue-600 font-bold">
+                               <WeatherIconComponent iconName={w.iconKey} /> {w.desc} {w.max}°
+                             </div>
+                           ) : <span className="text-xs text-gray-300">預報未出</span>}
+                           <div className="flex gap-2 print:hidden">
+                             <button onClick={() => openGoogleMapsRoute(dateStr)} className="text-blue-500 text-xs flex items-center gap-1 border border-blue-200 px-2 py-1 rounded hover:bg-blue-50"><Map size={12}/> 路線</button>
+                             {!currentTrip.isLocked && <button onClick={() => { setNewItem({...newItem, date: dateStr, type: 'itinerary'}); window.scrollTo({top: 0, behavior: 'smooth'}); }} className="text-gray-400 hover:text-blue-500"><Plus size={16}/></button>}
+                           </div>
+                       </div>
                     </div>
                     {dayItems.length === 0 ? <div className="text-center text-xs text-gray-300 py-4 border-2 border-dashed rounded-lg">點擊 + 新增行程</div> : dayItems.map(item => (
                         <div key={item.id} className={`flex gap-3 mb-4 relative pl-4 border-l-2 ${item.isCheckIn ? 'border-l-blue-400' : 'border-l-gray-200'}`}>
                            <div className={`absolute -left-[5px] top-1 w-2 h-2 rounded-full ${item.isCheckIn ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
                            <div className="flex-1 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}>
                               <div className="flex justify-between"><span className="font-bold text-gray-800 text-sm">{item.title}</span><span className="text-xs text-gray-400 font-mono">{item.startTime}</span></div>
-                              <div className="text-xs text-gray-500 mt-1 flex gap-2">{item.duration && <span className="flex items-center gap-1"><Clock size={10}/> {item.duration}</span>}{item.cost && <span className="text-orange-500 font-bold flex items-center gap-1"><Ticket size={10}/> ${item.cost}</span>}</div>
+                              <div className="text-xs text-gray-500 mt-1 flex gap-2">{item.duration && <span className="flex items-center gap-1"><Clock size={10}/> {item.duration}</span>}{item.cost > 0 && <span className="text-orange-500 font-bold flex items-center gap-1"><Ticket size={10}/> ${item.cost}</span>}</div>
                               {item.notes && <div className="text-xs text-gray-500 mt-2 bg-gray-50 p-2 rounded">{item.notes}</div>}
                            </div>
                            {!currentTrip.isLocked && <button onClick={() => deleteItem(item.id)} className="text-gray-300 hover:text-red-400 self-start"><Trash2 size={14}/></button>}
@@ -702,7 +713,7 @@ function TravelApp() {
         {activeTab === 'budget' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-2xl shadow-lg flex justify-between items-center"><div><p className="text-emerald-100 text-xs uppercase">總支出 (HKD)</p><h2 className="text-3xl font-bold mt-1">${budgetStats.total.toLocaleString()}</h2></div><div className="text-right"><p className="text-emerald-100 text-xs uppercase">預算剩餘</p><h3 className={`text-xl font-bold mt-1`}>${(currentTrip.estimatedBudget - budgetStats.total).toLocaleString()}</h3></div></div>
-            <div className="bg-white rounded-xl border divide-y">{items.filter(i=>i.cost && (i.type==='budget'||i.type==='itinerary')).sort((a,b)=>b.createdAt-a.createdAt).map(item => (<div key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}><div className="flex items-center gap-3"><div className={`p-2 rounded-full bg-gray-50 ${BUDGET_CATEGORIES[item.category]?.color}`}>{(() => { const Icon = BUDGET_CATEGORIES[item.category]?.icon || Circle; return <Icon size={16}/> })()}</div><div><div className="text-sm font-medium text-gray-800">{item.title}</div><div className="text-xs text-gray-400">{item.notes}</div></div></div><div className="font-bold text-gray-700">${Number(item.cost).toLocaleString()}</div></div>))}</div>
+            <div className="bg-white rounded-xl border divide-y">{items.filter(i=>i.cost > 0 && (i.type==='budget'||i.type==='itinerary')).sort((a,b)=>b.createdAt-a.createdAt).map(item => (<div key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}><div className="flex items-center gap-3"><div className={`p-2 rounded-full bg-gray-50 ${BUDGET_CATEGORIES[item.category]?.color}`}>{(() => { const Icon = BUDGET_CATEGORIES[item.category]?.icon || Circle; return <Icon size={16}/> })()}</div><div><div className="text-sm font-medium text-gray-800">{item.title}</div><div className="text-xs text-gray-400">{item.notes}</div></div></div><div className="font-bold text-gray-700">${Number(item.cost).toLocaleString()}</div></div>))}</div>
           </div>
         )}
 
