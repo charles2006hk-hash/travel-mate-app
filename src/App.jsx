@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithPopup } from "firebase/auth";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from "firebase/firestore";
@@ -9,7 +9,8 @@ import {
   History, MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
   ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car,
-  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight, Share
+  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight, Share,
+  AlertCircle, Check, RefreshCw as RefreshIcon
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -30,23 +31,38 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 const APP_ID = "travel-mate-app-7ca34"; 
 
-// --- 3. 資料庫與常數 ---
+// --- 3. 資料庫與常數 (大幅擴充) ---
 
 const CITY_DATA = {
+  // 日本
   "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
   "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
   "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi / Uber" },
+  // 韓國
   "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T / Uber" },
+  // 台灣
   "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688 / yoxi" },
+  // 泰國
   "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab / Bolt" },
+  // 歐洲
   "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / Bolt / Addison Lee" },
   "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber / Bolt / G7" },
+  // 香港
   "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / HKTaxi" },
+  // 澳洲 (新增)
+  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", intro: "澳洲最大城市，雪梨歌劇院與港灣大橋是世界級地標。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi / Ola" },
+  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", intro: "澳洲文化與咖啡之都，充滿藝術巷弄與維多利亞式建築。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi / 13CABS" },
+  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", intro: "陽光之城，擁有美麗的南岸公園與考拉保護區。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
+  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", intro: "衝浪者的天堂，擁有綿延的沙灘與多個主題樂園。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
 };
-const POPULAR_CITIES = Object.keys(CITY_DATA);
-const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約"];
 
-const EXCHANGE_RATES = { "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1 };
+const POPULAR_CITIES = Object.keys(CITY_DATA);
+const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約", "雪梨", "墨爾本"];
+
+const EXCHANGE_RATES = { 
+  "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, 
+  "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1, "AUD": 5.1 
+};
 
 const ESTIMATED_COSTS = {
   "JP": { flight: 4000, hotel: 1000, food: 400, transport: 150 },
@@ -55,6 +71,7 @@ const ESTIMATED_COSTS = {
   "TH": { flight: 2000, hotel: 600, food: 200, transport: 80 },
   "TW": { flight: 1800, hotel: 600, food: 250, transport: 80 },
   "UK": { flight: 8000, hotel: 1800, food: 600, transport: 200 },
+  "AU": { flight: 6000, hotel: 1200, food: 500, transport: 150 }, // 澳洲預算
   "default": { flight: 5000, hotel: 1000, food: 400, transport: 150 }
 };
 
@@ -93,9 +110,27 @@ const BUDGET_CATEGORIES = {
 
 // --- Custom Components ---
 
-// 自定義日曆範圍選擇器
-const RangeCalendar = ({ startDate, endDate, onChange }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+// Toast 通知元件
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgClass = type === 'error' ? 'bg-red-500' : 'bg-green-600';
+  const Icon = type === 'error' ? AlertCircle : Check;
+
+  return (
+    <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 ${bgClass} text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-[60] animate-bounce-in`}>
+      <Icon size={16} />
+      <span className="text-sm font-bold">{message}</span>
+    </div>
+  );
+};
+
+// 自定義日曆範圍選擇器 (優化版 - 支援 Popover)
+const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
+  const [currentMonth, setCurrentMonth] = useState(startDate ? new Date(startDate) : new Date());
   
   const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
@@ -104,13 +139,16 @@ const RangeCalendar = ({ startDate, endDate, onChange }) => {
     const clickedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateStr = clickedDate.toISOString().split('T')[0];
 
+    // 邏輯：如果沒選過，選開始；如果選了開始沒結束，選結束；如果都選了，重置為開始
     if (!startDate || (startDate && endDate)) {
       onChange({ startDate: dateStr, endDate: '' });
     } else {
       if (new Date(dateStr) < new Date(startDate)) {
         onChange({ startDate: dateStr, endDate: startDate });
+        if (onClose) setTimeout(onClose, 300); // 自動關閉
       } else {
         onChange({ startDate: startDate, endDate: dateStr });
+        if (onClose) setTimeout(onClose, 300); // 自動關閉
       }
     }
   };
@@ -127,10 +165,10 @@ const RangeCalendar = ({ startDate, endDate, onChange }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl border p-4 shadow-sm">
+    <div className="bg-white rounded-xl border p-4 shadow-xl w-72">
       <div className="flex justify-between items-center mb-4">
         <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft size={20}/></button>
-        <span className="font-bold">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+        <span className="font-bold text-sm">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
         <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronRight size={20}/></button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2 text-gray-400">
@@ -147,7 +185,7 @@ const RangeCalendar = ({ startDate, endDate, onChange }) => {
               key={day}
               type="button"
               onClick={() => handleDateClick(day)}
-              className={`h-9 w-9 rounded-full text-sm flex items-center justify-center transition-all
+              className={`h-8 w-8 rounded-full text-xs flex items-center justify-center transition-all
                 ${selected ? 'bg-blue-600 text-white font-bold shadow-md' : ''}
                 ${inRange ? 'bg-blue-100 text-blue-800' : ''}
                 ${!selected && !inRange ? 'hover:bg-gray-100 text-gray-700' : ''}
@@ -158,21 +196,20 @@ const RangeCalendar = ({ startDate, endDate, onChange }) => {
           );
         })}
       </div>
-      <div className="mt-4 text-center text-xs text-gray-500 border-t pt-2">
-        {startDate ? (endDate ? `已選擇：${startDate} 至 ${endDate}` : `起點：${startDate} (請選擇結束日期)`) : '請點擊日期開始規劃'}
+      <div className="mt-3 text-center text-xs text-blue-600 font-medium border-t pt-2 cursor-pointer hover:text-blue-800" onClick={onClose}>
+        完成 / 關閉
       </div>
     </div>
   );
 };
 
-// --- Helper Functions ---
+// --- Helper Functions (Updated Data) ---
 
-// 擴充 AI 行程生成
 const generateSmartItinerary = (city, days, purpose, travelers) => {
   const hasKids = travelers.children > 0 || travelers.toddlers > 0;
   const hasElderly = travelers.elderly > 0;
   
-  // 更豐富的資料庫
+  // 擴充後的景點資料庫
   const POI = {
     "東京": {
       parks: ["上野恩賜公園 🌸", "新宿御苑 🌳", "井之頭公園 🦢", "代代木公園"],
@@ -188,7 +225,34 @@ const generateSmartItinerary = (city, days, purpose, travelers) => {
       culture: ["大阪城天守閣 🏯", "通天閣 & 新世界", "四天王寺", "住吉大社"],
       food: ["道頓堀美食街 🐙", "黑門市場 🐟", "鶴橋燒肉街 🥩", "法善寺橫丁"],
     },
-    // ... 其他城市可以用類似結構擴充
+    "雪梨": {
+      parks: ["皇家植物園 🌿", "海德公園", "百年紀念公園"],
+      kids: ["塔龍加動物園 🐨", "雪梨水族館 🦈", "野生動物世界", "Luna Park 遊樂園"],
+      shop: ["維多利亞女王大廈 (QVB)", "皮特街購物中心", "岩石區週末市集", "DFO Homebush Outlet"],
+      culture: ["雪梨歌劇院 🎭", "雪梨港灣大橋", "岩石區歷史漫步", "聖瑪麗大教堂"],
+      food: ["魚市場 (Fish Market) 🦞", "達令港景觀餐廳", "薩利山咖啡區", "牛津街酒吧"],
+    },
+    "墨爾本": {
+      parks: ["皇家植物園", "費茲洛伊花園", "雅拉河畔散步"],
+      kids: ["墨爾本動物園", "樂高樂園探索中心", "墨爾本水族館", "普芬比利蒸汽火車 🚂"],
+      shop: ["柏克街購物中心", "墨爾本中央商場", "查德斯通購物中心 (南半球最大)", "DFO South Wharf"],
+      culture: ["弗林德斯街車站 🚉", "聯邦廣場", "維多利亞州立圖書館", "塗鴉巷 (Hosier Lane)"],
+      food: ["維多利亞女王市場 🍩", "Lygon街 義大利區", "唐人街", "咖啡巷弄巡禮 ☕"],
+    },
+    "布里斯本": {
+      parks: ["南岸公園 (South Bank)", "羅馬街植物園", "袋鼠角懸崖"],
+      kids: ["龍柏考拉保護區 🐨", "昆士蘭博物館", "Wheel of Brisbane 摩天輪"],
+      shop: ["皇后街購物中心", "詹姆斯街 (James St)", "DFO Brisbane Airport"],
+      culture: ["布里斯本市政廳", "故事橋 (Story Bridge)", "昆士蘭美術館"],
+      food: ["Eat Street Northshore 夜市 🍔", "鷹街碼頭 (Eagle Street Pier)", "西區 (West End) 咖啡"],
+    },
+    "黃金海岸": {
+      parks: ["伯利角國家公園", "Broadwater Parklands"],
+      kids: ["華納電影世界 🦸", "海洋世界 (Sea World) 🐬", "夢幻世界 (Dreamworld)", "Wet'n'Wild 水上樂園"],
+      shop: ["太平洋購物中心 (Pacific Fair)", "海港城 Outlet (Harbour Town)"],
+      culture: ["Q1大廈觀景台 (SkyPoint)", "衝浪者天堂海灘 🏄", "春溪國家公園 (藍光蟲)"],
+      food: ["邁阿密市集 (Miami Marketta)", "Broadbeach 餐飲區", "衝浪者天堂酒吧"],
+    }
   };
 
   const cityPOI = POI[city] || { 
@@ -197,13 +261,11 @@ const generateSmartItinerary = (city, days, purpose, travelers) => {
   };
 
   let itinerary = [];
-  itinerary.push({ title: "抵達 & 飯店 Check-in", notes: "辦理入住，熟悉周邊環境，購買交通卡" });
+  itinerary.push({ title: "抵達 & 飯店 Check-in", notes: "辦理入住，熟悉周邊環境，購買交通卡/網卡" });
 
   for (let i = 1; i < days - 1; i++) {
     let dayPlan = "";
     let dayNote = "";
-
-    // 隨機選取避免重複的簡單邏輯
     const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
     if (purpose === 'adventure' && cityPOI.kids.length > 0 && i === 1) {
@@ -219,7 +281,6 @@ const generateSmartItinerary = (city, days, purpose, travelers) => {
        dayPlan = `${getRandom(cityPOI.food)} 美食巡禮`;
        dayNote = "品嚐當地特色料理，建議先訂位";
     } else {
-       // 混合行程
        const spot = i % 2 === 0 ? getRandom(cityPOI.culture) : getRandom(cityPOI.parks);
        dayPlan = `${spot} 深度遊`;
        dayNote = hasElderly ? "行程寬鬆，少走樓梯，多安排休息" : "探索城市歷史與自然";
@@ -238,7 +299,6 @@ const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
     const res = await fetch(url);
     const data = await res.json();
     
-    // 整理成 Map: date -> info
     const weatherMap = {};
     if (data.daily) {
       data.daily.time.forEach((date, i) => {
@@ -246,7 +306,6 @@ const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
         let icon = Sun;
         let desc = "晴";
         
-        // 簡單天氣代碼轉換 (WMO Code)
         if (code >= 95) { icon = CloudRain; desc = "雷雨"; }
         else if (code >= 71) { icon = Snowflake; desc = "雪"; }
         else if (code >= 51) { icon = Droplets; desc = "雨"; }
@@ -279,7 +338,12 @@ function TravelApp() {
   const [searchHistory, setSearchHistory] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false); 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [weatherData, setWeatherData] = useState({}); // 儲存天氣資訊
+  const [weatherData, setWeatherData] = useState({});
+  const [isUpdating, setIsUpdating] = useState(true); // 模擬數據更新狀態
+  const [toast, setToast] = useState(null); // Toast 狀態 {message, type}
+
+  // UI 狀態
+  const [showCalendar, setShowCalendar] = useState(false); // 控制日曆顯示
 
   // 表單狀態
   const [newTrip, setNewTrip] = useState({
@@ -299,6 +363,17 @@ function TravelApp() {
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
   const [loadingWeather, setLoadingWeather] = useState(false);
+
+  // 模擬數據更新
+  useEffect(() => {
+    const timer = setTimeout(() => setIsUpdating(false), 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Helper to show toast
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -322,7 +397,6 @@ function TravelApp() {
     return onSnapshot(q, (snapshot) => setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
   }, [user, currentTrip]);
 
-  // 進入行程時載入天氣
   useEffect(() => {
     if (currentTrip && CITY_DATA[currentTrip.destination]) {
       const { lat, lon } = CITY_DATA[currentTrip.destination];
@@ -379,7 +453,7 @@ function TravelApp() {
   const handleGoogleLink = async () => {
     try {
       if (user.isAnonymous) await linkWithPopup(user, googleProvider);
-      else alert("已登入");
+      else showToast("您已經登入永久帳號", "success");
     } catch (error) {
       if (error.code === 'auth/credential-already-in-use') {
         if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider);
@@ -397,17 +471,17 @@ function TravelApp() {
   const toggleTripLock = async () => {
     await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', currentTrip.id), { isLocked: !currentTrip.isLocked });
     setCurrentTrip(prev => ({...prev, isLocked: !prev.isLocked}));
+    showToast(currentTrip.isLocked ? "行程已解鎖" : "行程已鎖定", "success");
   };
 
   const handlePrint = () => {
-    // 進入列印模式前，確保是展開的
     window.print();
   };
 
   const createTrip = async (e) => {
     e.preventDefault();
-    if (!newTrip.startDate || !newTrip.endDate) return alert("請選擇日期");
-    if (!newTrip.destination) return;
+    if (!newTrip.startDate || !newTrip.endDate) return showToast("請選擇完整的日期範圍", "error");
+    if (!newTrip.destination) return showToast("請輸入目的地", "error");
     try {
       setLoadingWeather(true);
       const docRef = await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'trips'), { ...newTrip, weather: 'sunny', currency: CITY_DATA[newTrip.destination]?.currency || 'HKD', actualCost: 0, isLocked: false, createdAt: serverTimestamp() });
@@ -430,32 +504,33 @@ function TravelApp() {
       if (newTrip.budgetDetails.shopping > 0) batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId, type: 'budget', title: '🛍️ 預留購物金', cost: newTrip.budgetDetails.shopping, category: 'shopping', createdAt: serverTimestamp() }));
       await Promise.all(batch);
       setNewTrip({ origin: '香港', destination: '', startDate: '', endDate: '', purpose: 'sightseeing', travelers: { adults: 1, children: 0, toddlers: 0, elderly: 0 }, estimatedBudget: 0, budgetDetails: {} });
-      alert("AI 深度行程規劃完成！");
-    } catch (error) { console.error(error); setLoadingWeather(false); }
+      showToast("AI 行程規劃完成！", "success");
+    } catch (error) { console.error(error); setLoadingWeather(false); showToast("建立失敗，請稍後再試", "error"); }
   };
   const deleteTrip = async (id, e) => { e.stopPropagation(); if (confirm("確定刪除？")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', id)); };
   const openTrip = (trip) => { setCurrentTrip(trip); setView('trip-detail'); setNewItem({ ...newItem, date: trip.startDate, currency: CITY_DATA[trip.destination]?.currency || 'HKD' }); };
   const handleForeignCostChange = (amount, currency) => { const rate = EXCHANGE_RATES[currency] || 1; setNewItem(prev => ({ ...prev, foreignCost: amount, currency: currency, cost: Math.round(amount * rate) })); };
   const addItem = async (e) => {
-    e.preventDefault(); if (!newItem.title && !checkInModal) return; if (currentTrip.isLocked) return alert("已鎖定");
+    e.preventDefault(); if (!newItem.title && !checkInModal) return; if (currentTrip.isLocked) return showToast("行程已鎖定", "error");
     let finalNotes = newItem.notes; if (newItem.foreignCost && newItem.currency !== 'HKD') finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${finalNotes}`;
     let finalWeight = newItem.weight, finalVolume = 0; if (newItem.type === 'packing') { const defs = ITEM_DEFINITIONS[newItem.title]; if (defs && finalWeight === 0) { finalWeight = defs.weight; finalVolume = defs.volume; } }
     const payload = { ...newItem, notes: finalNotes, weight: finalWeight, volume: finalVolume, tripId: currentTrip.id, completed: false, createdAt: serverTimestamp() };
     if (editingItem) { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', editingItem), payload); setEditingItem(null); } else { await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), payload); }
     if (newItem.cost || newItem.type === 'budget') setTimeout(() => updateTripActualCost(currentTrip.id), 500);
     setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '', quantity: 1, weight: 0, startTime: '', duration: '' }); setCheckInModal(false);
+    showToast("項目已新增", "success");
   };
-  const editItem = (item) => { if (currentTrip.isLocked) return alert("已鎖定"); setNewItem({ ...item, foreignCost: item.foreignCost || '', currency: item.currency || 'HKD' }); setEditingItem(item.id); };
-  const deleteItem = async (id) => { if (currentTrip.isLocked) return alert("已鎖定"); if(!confirm("確定刪除？")) return; await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', id)); setTimeout(() => updateTripActualCost(currentTrip.id), 500); };
+  const editItem = (item) => { if (currentTrip.isLocked) return showToast("已鎖定", "error"); setNewItem({ ...item, foreignCost: item.foreignCost || '', currency: item.currency || 'HKD' }); setEditingItem(item.id); };
+  const deleteItem = async (id) => { if (currentTrip.isLocked) return showToast("已鎖定", "error"); if(!confirm("確定刪除？")) return; await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', id)); setTimeout(() => updateTripActualCost(currentTrip.id), 500); };
   const toggleItemComplete = async (item) => updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', item.id), { completed: !item.completed });
   const updateQuantity = async (item, delta) => { if (currentTrip.isLocked) return; const newQty = Math.max(1, (item.quantity || 1) + delta); await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', item.id), { quantity: newQty }); };
   const openGoogleMapsRoute = (date) => {
     const points = items.filter(i => i.type === 'itinerary' && i.date === date).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
-    if (points.length === 0) return alert("無行程點");
+    if (points.length === 0) return showToast("無行程點", "error");
     const origin = points[0].title; const destination = points[points.length - 1].title; const waypoints = points.slice(1, -1).map(p => p.title).join('|');
     window.open(points.length === 1 ? `https://www.google.com/maps/search/${currentTrip.destination}+${origin}` : `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=transit`, '_blank');
   };
-  const handleCheckIn = () => { if (currentTrip.isLocked) return alert("已鎖定"); if (!navigator.geolocation) return alert("不支援定位"); navigator.geolocation.getCurrentPosition((pos) => { const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); setNewItem(prev => ({ ...prev, type: 'itinerary', title: `📍 打卡 (${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`, date: new Date().toISOString().split('T')[0], startTime: t, notes: '', cost: '', category: 'other', isCheckIn: true })); setCheckInModal(true); }, () => alert("定位失敗")); };
+  const handleCheckIn = () => { if (currentTrip.isLocked) return showToast("已鎖定", "error"); if (!navigator.geolocation) return showToast("不支援定位", "error"); navigator.geolocation.getCurrentPosition((pos) => { const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); setNewItem(prev => ({ ...prev, type: 'itinerary', title: `📍 打卡 (${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`, date: new Date().toISOString().split('T')[0], startTime: t, notes: '', cost: '', category: 'other', isCheckIn: true })); setCheckInModal(true); }, () => showToast("定位失敗", "error")); };
 
   const luggageStats = useMemo(() => {
     const packingItems = items.filter(i => i.type === 'packing');
@@ -588,7 +663,18 @@ function TravelApp() {
   if (view === 'dashboard') {
     return (
       <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-800">
-        <div className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Toast Notification */}
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+        {/* 模擬資料更新條 */}
+        {isUpdating && (
+           <div className="fixed top-0 left-0 w-full bg-blue-600 text-white text-xs py-1 text-center z-[70] flex items-center justify-center gap-2 animate-pulse">
+              <RefreshIcon size={12} className="animate-spin"/> 正在同步全球旅遊資訊...
+           </div>
+        )}
+
+        <div className="max-w-4xl mx-auto space-y-6 pt-6">
           <header className="flex justify-between items-center mb-8">
             <h1 className="text-2xl font-bold text-blue-900 flex items-center gap-2"><Plane className="text-blue-600" /> 智能旅遊管家 <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">AI 旗艦版</span></h1>
             <div className="flex gap-2">
@@ -624,14 +710,39 @@ function TravelApp() {
             <form onSubmit={createTrip} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1 relative"><label className="text-xs text-gray-500">出發地</label><div className="relative"><MapPinIcon className="absolute left-3 top-3 text-gray-400" size={16} /><input value={newTrip.origin} onChange={e=>setNewTrip({...newTrip, origin: e.target.value})} onFocus={() => setShowOriginSuggestions(true)} className="w-full pl-9 p-2 border rounded-lg bg-gray-50"/></div>{showOriginSuggestions && <div className="absolute z-10 w-full bg-white border rounded-lg shadow-xl mt-1 p-2 flex flex-wrap gap-2">{POPULAR_ORIGINS.map(c => <button type="button" key={c} onClick={() => {setNewTrip({...newTrip, origin: c}); setShowOriginSuggestions(false);}} className="text-xs bg-gray-100 px-2 py-1 rounded">{c}</button>)}<button type="button" onClick={()=>setShowOriginSuggestions(false)} className="w-full text-center text-xs text-blue-500 mt-1 pt-1 border-t">關閉</button></div>}</div>
-                <div className="space-y-1 relative"><label className="text-xs text-gray-500">目的地</label><div className="relative"><Navigation className="absolute left-3 top-3 text-blue-500" size={16} /><input placeholder="例如：東京" value={newTrip.destination} onChange={e=>setNewTrip({...newTrip, destination: e.target.value})} onFocus={() => setShowCitySuggestions(true)} className="w-full pl-9 p-2 border rounded-lg focus:ring-2 ring-blue-500 outline-none" /></div>{showCitySuggestions && <div className="absolute z-10 w-full bg-white border rounded-lg shadow-xl mt-1 p-2 grid grid-cols-4 gap-2">{POPULAR_CITIES.map(c => <button type="button" key={c} onClick={() => {setNewTrip({...newTrip, destination: c}); setShowCitySuggestions(false);}} className="text-xs border px-2 py-1 rounded hover:bg-blue-50">{c}</button>)}<button type="button" onClick={()=>setShowCitySuggestions(false)} className="col-span-4 text-center text-xs text-blue-500 mt-1 pt-1 border-t">關閉</button></div>}</div>
+                <div className="space-y-1 relative"><label className="text-xs text-gray-500">目的地</label><div className="relative"><Navigation className="absolute left-3 top-3 text-blue-500" size={16} /><input placeholder="例如：雪梨" value={newTrip.destination} onChange={e=>setNewTrip({...newTrip, destination: e.target.value})} onFocus={() => setShowCitySuggestions(true)} className="w-full pl-9 p-2 border rounded-lg focus:ring-2 ring-blue-500 outline-none" /></div>{showCitySuggestions && <div className="absolute z-10 w-full bg-white border rounded-lg shadow-xl mt-1 p-2 grid grid-cols-4 gap-2">{POPULAR_CITIES.map(c => <button type="button" key={c} onClick={() => {setNewTrip({...newTrip, destination: c}); setShowCitySuggestions(false);}} className="text-xs border px-2 py-1 rounded hover:bg-blue-50">{c}</button>)}<button type="button" onClick={()=>setShowCitySuggestions(false)} className="col-span-4 text-center text-xs text-blue-500 mt-1 pt-1 border-t">關閉</button></div>}</div>
               </div>
               
-              {/* 全新 Range Calendar UI */}
-              <div className="space-y-1">
-                 <label className="text-xs text-gray-500">選擇旅遊日期 (點擊開始與結束)</label>
-                 <RangeCalendar startDate={newTrip.startDate} endDate={newTrip.endDate} onChange={({startDate, endDate}) => setNewTrip({...newTrip, startDate, endDate})} />
+              {/* 日曆 Popover */}
+              <div className="space-y-1 relative">
+                 <label className="text-xs text-gray-500">選擇旅遊日期 (點擊開啟日曆)</label>
+                 <div 
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    className="w-full p-2 border rounded-lg flex items-center justify-between cursor-pointer bg-gray-50 hover:bg-gray-100"
+                 >
+                    <span className="text-sm flex items-center gap-2">
+                       <CalIcon size={16} className="text-gray-500"/>
+                       {newTrip.startDate ? `${newTrip.startDate} ➔ ${newTrip.endDate || '請選擇結束'}` : '點擊選擇日期'}
+                    </span>
+                 </div>
+                 {showCalendar && (
+                    <div className="absolute top-16 left-0 z-20">
+                       <RangeCalendar 
+                          startDate={newTrip.startDate} 
+                          endDate={newTrip.endDate} 
+                          onChange={({startDate, endDate}) => setNewTrip({...newTrip, startDate, endDate})}
+                          onClose={() => setShowCalendar(false)} 
+                       />
+                    </div>
+                 )}
               </div>
+
+              {/* 驗證提示 UI (Novel method) */}
+              {!newTrip.endDate && newTrip.startDate && (
+                 <div className="text-xs text-orange-500 flex items-center gap-1 animate-pulse">
+                    <AlertCircle size={12}/> 請點擊日曆選擇結束日期
+                 </div>
+              )}
 
               <div className="space-y-1"><label className="text-xs text-gray-500">旅遊目的</label><div className="flex gap-2">{[{id:'sightseeing', icon:Camera, label:'觀光'}, {id:'shopping', icon:ShoppingBag, label:'購物'}, {id:'food', icon:Utensils, label:'美食'}, {id:'adventure', icon:Mountain, label:'冒險'}].map(p => (<button type="button" key={p.id} onClick={() => setNewTrip({...newTrip, purpose: p.id})} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-lg border text-xs transition-colors ${newTrip.purpose === p.id ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-500'}`}><p.icon size={16} /> <span className="mt-1">{p.label}</span></button>))}</div></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3"><TravelerCounter label="成人" icon={User} field="adults" value={newTrip.travelers.adults} /><TravelerCounter label="小童" icon={User} field="children" value={newTrip.travelers.children} /><TravelerCounter label="幼童" icon={Baby} field="toddlers" value={newTrip.travelers.toddlers} /><TravelerCounter label="長者" icon={Accessibility} field="elderly" value={newTrip.travelers.elderly} /></div>
@@ -653,6 +764,9 @@ function TravelApp() {
   
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col bg-white">
+      {/* Toast Notification */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       {/* 頂部 Header */}
       <div className="bg-white border-b sticky top-0 z-20 shadow-sm print:hidden">
         <div className="max-w-4xl mx-auto px-4">
@@ -681,6 +795,32 @@ function TravelApp() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Report Preview Modal */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+           <div className="bg-white rounded-lg shadow-2xl w-full max-w-[210mm] min-h-[90vh] relative flex flex-col">
+              <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-lg">
+                 <h2 className="font-bold text-gray-700 flex items-center gap-2"><Eye size={20}/> 閱讀模式</h2>
+                 <div className="flex gap-2">
+                    <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm active:scale-95"><Printer size={16}/> <span className="hidden sm:inline">列印 / 轉存 PDF</span></button>
+                    <button onClick={()=>setShowPreviewModal(false)} className="text-gray-500 hover:bg-gray-100 p-2 rounded-lg"><X size={20}/></button>
+                 </div>
+              </div>
+              <div className="flex-1 overflow-y-auto bg-gray-100 p-8">
+                 {/* 預覽區域 - 模擬 A4 紙 */}
+                 <div className="bg-white shadow-lg mx-auto" style={{ width: '210mm', minHeight: '297mm' }}>
+                    <ReportTemplate />
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* 隱藏的列印區域 (Print Only) */}
+      <div className="hidden print:block">
+         <ReportTemplate />
       </div>
 
       <div className="flex-1 max-w-4xl mx-auto w-full p-4 space-y-6 print:hidden">
