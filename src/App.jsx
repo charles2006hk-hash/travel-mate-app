@@ -8,7 +8,7 @@ import {
   Luggage, Plane, Baby, Accessibility, User, Navigation,
   History, MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
-  ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car, Phone
+  ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -296,7 +296,9 @@ function TravelApp() {
 
   // --- AI 預算估算邏輯 (增強版) ---
   const calculateEstimatedBudget = () => {
-    if (newTrip.endDate < newTrip.startDate) return;
+    if (!newTrip.startDate || !newTrip.endDate) return;
+    if (new Date(newTrip.endDate) < new Date(newTrip.startDate)) return;
+
     const cityInfo = CITY_DATA[newTrip.destination];
     const region = cityInfo ? cityInfo.region : 'default';
     const costs = ESTIMATED_COSTS[region] || ESTIMATED_COSTS['default'];
@@ -335,11 +337,18 @@ function TravelApp() {
     }));
   };
 
+  // 自動觸發預算計算 (加入 purpose 作為依賴)
+  useEffect(() => {
+    if (newTrip.destination && newTrip.startDate && newTrip.endDate) {
+      calculateEstimatedBudget();
+    }
+  }, [newTrip.destination, newTrip.startDate, newTrip.endDate, newTrip.travelers, newTrip.purpose]);
+
   // --- 核心邏輯升級 ---
 
   const createTrip = async (e) => {
     e.preventDefault();
-    if (newTrip.endDate < newTrip.startDate) return alert("日期錯誤");
+    if (newTrip.endDate < newTrip.startDate) return alert("結束日期不能早於開始日期");
     if (!newTrip.destination) return;
 
     if (!searchHistory.includes(newTrip.destination)) {
@@ -622,9 +631,23 @@ function TravelApp() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div className="flex gap-2">
-                    <div className="flex-1 space-y-1"><label className="text-xs text-gray-500">開始</label><input type="date" value={newTrip.startDate} onChange={e=>setNewTrip({...newTrip, startDate: e.target.value})} className="w-full p-2 border rounded-lg" required /></div>
-                    <div className="flex-1 space-y-1"><label className="text-xs text-gray-500">結束</label><input type="date" value={newTrip.endDate} onChange={e=>setNewTrip({...newTrip, endDate: e.target.value})} className="w-full p-2 border rounded-lg" required /></div>
+                 <div className="flex gap-2 items-center">
+                    <div className="flex-1 space-y-1">
+                        <label className="text-xs text-gray-500">開始</label>
+                        <input type="date" min={new Date().toISOString().split('T')[0]} value={newTrip.startDate} onChange={e=>setNewTrip({...newTrip, startDate: e.target.value})} className="w-full p-2 border rounded-lg" required />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                        <label className="text-xs text-gray-500">結束</label>
+                        <input 
+                            type="date" 
+                            min={newTrip.startDate || new Date().toISOString().split('T')[0]} 
+                            value={newTrip.endDate} 
+                            onChange={e=>setNewTrip({...newTrip, endDate: e.target.value})} 
+                            className="w-full p-2 border rounded-lg" 
+                            disabled={!newTrip.startDate}
+                            required 
+                        />
+                    </div>
                  </div>
                  <div className="space-y-1">
                     <label className="text-xs text-gray-500">旅遊目的 (影響預算與行程)</label>
@@ -637,6 +660,13 @@ function TravelApp() {
                     </div>
                  </div>
               </div>
+
+              {/* 日期提示 */}
+              {newTrip.startDate && newTrip.endDate && (
+                  <div className="text-center text-xs text-blue-600 font-bold bg-blue-50 p-1 rounded mt-1">
+                      預計旅遊天數：共 {Math.max(1, Math.ceil((new Date(newTrip.endDate) - new Date(newTrip.startDate))/(1000 * 60 * 60 * 24)) + 1)} 天
+                  </div>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <TravelerCounter label="成人" icon={User} field="adults" value={newTrip.travelers.adults} />
