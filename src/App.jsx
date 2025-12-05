@@ -10,7 +10,7 @@ import {
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
   ExternalLink, Clock, Search, Utensils, Siren, Ambulance, Car,
   Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight,
-  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Ticket, Phone, ArrowRight
+  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Ticket, Phone, ArrowRight, Star, BedDouble
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -34,47 +34,47 @@ const APP_ID = "travel-mate-app-7ca34";
 // --- 3. 資料庫與常數 ---
 
 const CITY_DATA = {
-  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi" },
-  "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", intro: "北國雪景與美食，冬季必訪大通公園雪祭。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", intro: "九州門戶，屋台文化與豚骨拉麵的發源地。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
-  "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", intro: "海港城市，海雲台沙灘與甘川洞文化村。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
-  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688" },
-  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab" },
-  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
-  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber" },
-  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
-  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", intro: "澳洲最大城市，雪梨歌劇院與港灣大橋是世界級地標。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", intro: "澳洲文化與咖啡之都，充滿藝術巷弄與維多利亞式建築。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", intro: "陽光之城，擁有美麗的南岸公園與考拉保護區。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", intro: "衝浪者的天堂，擁有綿延的沙灘與多個主題樂園。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  // 日本
+  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
+  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
+  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&q=80", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi / Uber" },
+  "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1516900557549-41557d405adf?w=400&q=80", intro: "北國雪景與美食，冬季必訪大通公園雪祭。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1570459027562-4a916cc6113f?w=400&q=80", intro: "九州門戶，屋台文化與豚骨拉麵的發源地。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  // 韓國
+  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1538669716383-71cc735d4872?w=400&q=80", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T / Uber" },
+  "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1596788502256-4c4f9273c3cb?w=400&q=80", intro: "海港城市，海雲台沙灘與甘川洞文化村。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
+  // 台灣
+  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", img: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?w=400&q=80", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688 / yoxi" },
+  // 泰國
+  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", img: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=400&q=80", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab / Bolt" },
+  // 歐洲
+  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / Bolt / Addison Lee" },
+  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber / Bolt / G7" },
+  // 香港
+  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", img: "https://images.unsplash.com/photo-1518599801797-737c8d02e8e7?w=400&q=80", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / HKTaxi" },
+  // 澳洲
+  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", intro: "澳洲最大城市，雪梨歌劇院與港灣大橋是世界級地標。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi / Ola" },
+  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1510265119258-db115b0e8172?w=400&q=80", intro: "澳洲文化與咖啡之都，充滿藝術巷弄與維多利亞式建築。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi / 13CABS" },
+  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1562657523-2679c2937397?w=400&q=80", intro: "陽光之城，擁有美麗的南岸公園與考拉保護區。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
+  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=400&q=80", intro: "衝浪者的天堂，擁有綿延的沙灘與多個主題樂園。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber / DiDi" },
 };
 
 const POPULAR_CITIES = Object.keys(CITY_DATA);
 const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約", "雪梨", "墨爾本"];
+
 const EXCHANGE_RATES = { "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1, "AUD": 5.1 };
 
-// AI 預算參數
+// AI 預算與行李參數
 const PURPOSE_MULTIPLIERS = {
-  "sightseeing": { flight: 1, hotel: 1, food: 1, transport: 1.2, shopping: 2000 }, 
-  "shopping": { flight: 1, hotel: 1, food: 0.8, transport: 1, shopping: 8000 }, 
-  "food": { flight: 1, hotel: 1, food: 2.0, transport: 1, shopping: 2000 }, 
-  "adventure": { flight: 1, hotel: 1.2, food: 1, transport: 1.5, shopping: 1000 } 
+  "sightseeing": { flight: 1, hotel: 1, food: 1, transport: 1.2, shopping: 2000, label: "觀光打卡", icon: Camera, desc: "輕鬆遊覽名勝古蹟" }, 
+  "shopping": { flight: 1, hotel: 1, food: 0.8, transport: 1, shopping: 8000, label: "購物血拼", icon: ShoppingBag, desc: "Outlet與百貨巡禮" }, 
+  "food": { flight: 1, hotel: 1, food: 2.0, transport: 1, shopping: 2000, label: "美食巡禮", icon: Utensils, desc: "米其林與在地小吃" }, 
+  "adventure": { flight: 1, hotel: 1.2, food: 1, transport: 1.5, shopping: 1000, label: "冒險體驗", icon: Mountain, desc: "主題樂園與戶外" } 
 };
 
-const FLIGHT_COSTS = {
-  "JP": { direct: 5000, transfer: 3500 },
-  "UK": { direct: 10000, transfer: 7000 },
-  "AU": { direct: 8000, transfer: 6000 },
-  "default": { direct: 6000, transfer: 4000 }
-};
-
-const HOTEL_COSTS = {
-  "5star": 3000, "4star": 1500, "3star": 800, "homestay": 600, "hostel": 300
-};
-
+const FLIGHT_COSTS = { "JP": { direct: 5000, transfer: 3500 }, "UK": { direct: 10000, transfer: 7000 }, "AU": { direct: 8000, transfer: 6000 }, "default": { direct: 6000, transfer: 4000 } };
+const HOTEL_COSTS = { "5star": 3000, "4star": 1500, "3star": 800, "homestay": 600, "hostel": 300 };
+const HOTEL_LABELS = { "5star": "五星級奢華", "4star": "四星級舒適", "3star": "三星級經濟", "homestay": "民宿/Airbnb", "hostel": "青年旅館" };
 const BASE_COSTS = { "JP": { food: 400, transport: 150 }, "AU": { food: 500, transport: 150 }, "default": { food: 400, transport: 150 } };
 
 const ITEM_DEFINITIONS = {
@@ -92,12 +92,108 @@ function ZapIcon(props) { return <svg {...props} xmlns="http://www.w3.org/2000/s
 const BUDGET_CATEGORIES = { shopping: { label: "衣/購", icon: ShoppingBag, color: "text-pink-500" }, food: { label: "食", icon: Utensils, color: "text-orange-500" }, stay: { label: "住", icon: Home, color: "text-indigo-500" }, transport: { label: "行", icon: Bus, color: "text-blue-500" }, other: { label: "其他", icon: FileText, color: "text-gray-500" } };
 const CATEGORY_LABELS = { shopping: { label: "衣 (購物)", icon: ShoppingBag, color: "text-pink-500", bg: "bg-pink-50" }, food: { label: "食 (美食)", icon: Utensils, color: "text-orange-500", bg: "bg-orange-50" }, stay: { label: "住 (住宿)", icon: Home, color: "text-indigo-500", bg: "bg-indigo-50" }, transport: { label: "行 (景點/交通)", icon: Map, color: "text-blue-500", bg: "bg-blue-50" }, other: { label: "其他", icon: FileText, color: "text-gray-500", bg: "bg-gray-50" } };
 
-// 景點資料庫
+// 完整擴充景點資料庫 (全城市覆蓋)
 const POI_DB = {
-  "東京": [{ name: "東京迪士尼", category: "transport", cost: 600, time: "全日", note: "夢幻王國", lat: 35.6329, lon: 139.8804, img: "https://images.unsplash.com/photo-1545582379-34e8ce6a3092?w=400&q=80", desc: "亞洲第一座迪士尼樂園。" }, { name: "淺草寺", category: "transport", cost: 0, time: "2h", note: "雷門打卡", lat: 35.7147, lon: 139.7967, img: "https://images.unsplash.com/photo-1596395914619-338d9b52c007?w=400&q=80", desc: "東京最古老的寺廟。" }, { name: "東京晴空塔", category: "transport", cost: 200, time: "2h", note: "俯瞰東京全景", lat: 35.7100, lon: 139.8107, img: "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?w=400&q=80", desc: "世界最高的自立式電波塔。" }, { name: "築地場外市場", category: "food", cost: 300, time: "2h", note: "新鮮壽司", lat: 35.6655, lon: 139.7707, img: "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&q=80", desc: "東京的廚房。" }],
-  "大阪": [{ name: "環球影城", category: "transport", cost: 650, time: "全日", note: "任天堂世界", lat: 34.6654, lon: 135.4323, img: "https://images.unsplash.com/photo-1623941000802-38fadd7f7b3b?w=400&q=80", desc: "世界級主題樂園。" }, { name: "道頓堀", category: "food", cost: 200, time: "3h", note: "美食吃到飽", lat: 34.6687, lon: 135.5013, img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", desc: "大阪美食心臟。" }],
-  "雪梨": [{ name: "雪梨歌劇院", category: "transport", cost: 200, time: "2h", note: "世界遺產", lat: -33.8568, lon: 151.2153, img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", desc: "經典地標。" }, { name: "邦迪海灘", category: "transport", cost: 0, time: "3h", note: "衝浪", lat: -33.8915, lon: 151.2767, img: "https://images.unsplash.com/photo-1523428098666-1a6a90e96033?w=400&q=80", desc: "澳洲最著名海灘。" }],
-  "default": [{ name: "市中心地標", category: "transport", cost: 0, time: "1h", note: "打卡點", lat: 0, lon: 0, img: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80", desc: "城市中心。" }]
+  "東京": [
+    { name: "東京迪士尼樂園", category: "transport", cost: 600, time: "全日", note: "夢幻王國", lat: 35.6329, lon: 139.8804, img: "https://images.unsplash.com/photo-1545582379-34e8ce6a3092?w=400&q=80", desc: "亞洲第一座迪士尼樂園，七大主題園區。" },
+    { name: "淺草寺", category: "transport", cost: 0, time: "2h", note: "雷門打卡", lat: 35.7147, lon: 139.7967, img: "https://images.unsplash.com/photo-1596395914619-338d9b52c007?w=400&q=80", desc: "東京最古老的寺廟，著名的雷門大燈籠。" },
+    { name: "東京晴空塔", category: "transport", cost: 200, time: "2h", note: "俯瞰東京全景", lat: 35.7100, lon: 139.8107, img: "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?w=400&q=80", desc: "世界最高的自立式電波塔。" },
+    { name: "築地場外市場", category: "food", cost: 300, time: "2h", note: "新鮮壽司早午餐", lat: 35.6655, lon: 139.7707, img: "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&q=80", desc: "東京的廚房，各式海鮮小吃。" },
+    { name: "銀座商圈", category: "shopping", cost: 0, time: "3h", note: "高級精品與百貨", lat: 35.6712, lon: 139.7665, img: "https://images.unsplash.com/photo-1554797589-7241bb691973?w=400&q=80", desc: "東京最繁華的高級購物區。" }
+  ],
+  "大阪": [
+    { name: "環球影城 USJ", category: "transport", cost: 650, time: "全日", note: "任天堂世界", lat: 34.6654, lon: 135.4323, img: "https://images.unsplash.com/photo-1623941000802-38fadd7f7b3b?w=400&q=80", desc: "世界級主題樂園。" },
+    { name: "道頓堀美食", category: "food", cost: 200, time: "3h", note: "章魚燒吃到飽", lat: 34.6687, lon: 135.5013, img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", desc: "大阪美食心臟。" },
+    { name: "大阪城天守閣", category: "transport", cost: 50, time: "2h", note: "歷史古蹟", lat: 34.6873, lon: 135.5262, img: "https://images.unsplash.com/photo-1555428456-62846879d75b?w=400&q=80", desc: "日本三名城之一。" },
+    { name: "海遊館", category: "transport", cost: 180, time: "3h", note: "世界最大級水族館", lat: 34.6545, lon: 135.4289, img: "https://images.unsplash.com/photo-1596395914619-338d9b52c007?w=400&q=80", desc: "展示環太平洋火山帶生態。" },
+    { name: "心齋橋筋", category: "shopping", cost: 0, time: "3h", note: "購物天堂", lat: 34.6713, lon: 135.5014, img: "https://images.unsplash.com/photo-1567972318528-6c6773777e36?w=400&q=80", desc: "大阪最著名的購物街。" }
+  ],
+  "京都": [
+    { name: "清水寺", category: "transport", cost: 30, time: "3h", note: "世界遺產", lat: 34.9949, lon: 135.7850, img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&q=80", desc: "京都最著名的古老寺院。" },
+    { name: "伏見稻荷大社", category: "transport", cost: 0, time: "2h", note: "千本鳥居", lat: 34.9671, lon: 135.7727, img: "https://images.unsplash.com/photo-1478436127897-769e1b3f0f36?w=400&q=80", desc: "綿延不絕的紅色鳥居隧道。" },
+    { name: "金閣寺", category: "transport", cost: 40, time: "1h", note: "金碧輝煌", lat: 35.0394, lon: 135.7292, img: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=400&q=80", desc: "舍利殿外牆全以金箔裝飾。" },
+    { name: "錦市場", category: "food", cost: 100, time: "2h", note: "京都的廚房", lat: 35.0050, lon: 135.7649, img: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&q=80", desc: "充滿在地美食的商店街。" }
+  ],
+  "札幌": [
+    { name: "大通公園", category: "transport", cost: 0, time: "1h", note: "雪祭會場", lat: 43.0600, lon: 141.3500, img: "https://images.unsplash.com/photo-1516900557549-41557d405adf?w=400&q=80", desc: "札幌市中心的地標公園。" },
+    { name: "札幌時計台", category: "transport", cost: 20, time: "0.5h", note: "歷史建築", lat: 43.0626, lon: 141.3536, img: "https://images.unsplash.com/photo-1579502693952-6784d2627447?w=400&q=80", desc: "現存日本最古老的鐘樓。" },
+    { name: "狸小路商店街", category: "shopping", cost: 0, time: "3h", note: "藥妝採買", lat: 43.0573, lon: 141.3515, img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80", desc: "北海道最大的商店街。" },
+    { name: "白色戀人公園", category: "transport", cost: 60, time: "2h", note: "觀光工廠", lat: 43.0886, lon: 141.2710, img: "https://images.unsplash.com/photo-1515488764276-beab7607c1e6?w=400&q=80", desc: "充滿童話氣息的甜點主題公園。" }
+  ],
+  "福岡": [
+    { name: "太宰府天滿宮", category: "transport", cost: 0, time: "3h", note: "學問之神", lat: 33.5215, lon: 130.5349, img: "https://images.unsplash.com/photo-1572970544522-6b9409605704?w=400&q=80", desc: "祈求學業進步的聖地。" },
+    { name: "中洲屋台街", category: "food", cost: 200, time: "2h", note: "路邊攤體驗", lat: 33.5902, lon: 130.4017, img: "https://images.unsplash.com/photo-1563205764-6d9b4c042220?w=400&q=80", desc: "福岡特色的路邊攤美食文化。" },
+    { name: "博多運河城", category: "shopping", cost: 0, time: "3h", note: "大型購物中心", lat: 33.5897, lon: 130.4108, img: "https://images.unsplash.com/photo-1573289063683-1cf5e5c6e86b?w=400&q=80", desc: "結合購物、娛樂的複合設施。" },
+    { name: "福岡塔", category: "transport", cost: 80, time: "1h", note: "海濱地標", lat: 33.5933, lon: 130.3515, img: "https://images.unsplash.com/photo-1570459027562-4a916cc6113f?w=400&q=80", desc: "日本最高的海濱塔。" }
+  ],
+  "首爾": [
+    { name: "景福宮", category: "transport", cost: 30, time: "2h", note: "穿韓服免費", lat: 37.5796, lon: 126.9770, img: "https://images.unsplash.com/photo-1538669716383-71cc735d4872?w=400&q=80", desc: "朝鮮王朝的第一法宮。" },
+    { name: "N首爾塔", category: "transport", cost: 100, time: "2h", note: "南山夜景", lat: 37.5512, lon: 126.9882, img: "https://images.unsplash.com/photo-1549692520-acc6669e2f0c?w=400&q=80", desc: "首爾的地標，可俯瞰全市。" },
+    { name: "明洞商圈", category: "shopping", cost: 0, time: "4h", note: "美妝天堂", lat: 37.5636, lon: 126.9827, img: "https://images.unsplash.com/photo-1579541529340-087332733979?w=400&q=80", desc: "韓國流行時尚與美妝的中心。" },
+    { name: "北村韓屋村", category: "transport", cost: 0, time: "2h", note: "傳統建築", lat: 37.5826, lon: 126.9837, img: "https://images.unsplash.com/photo-1596826599288-114541b47d8f?w=400&q=80", desc: "保留完整的傳統韓屋聚落。" }
+  ],
+  "釜山": [
+    { name: "海雲台海水浴場", category: "transport", cost: 0, time: "3h", note: "最美海灘", lat: 35.1587, lon: 129.1603, img: "https://images.unsplash.com/photo-1596788502256-4c4f9273c3cb?w=400&q=80", desc: "韓國最著名的渡假海灘。" },
+    { name: "甘川洞文化村", category: "transport", cost: 0, time: "3h", note: "韓國馬丘比丘", lat: 35.0975, lon: 129.0106, img: "https://images.unsplash.com/photo-1569947703378-c44d7073229b?w=400&q=80", desc: "充滿色彩繽紛房屋的山坡村落。" },
+    { name: "札嘎其市場", category: "food", cost: 200, time: "2h", note: "生鮮海鮮", lat: 35.0967, lon: 129.0305, img: "https://images.unsplash.com/photo-1580237072617-771c3ecc4a24?w=400&q=80", desc: "韓國最大的水產市場。" }
+  ],
+  "台北": [
+    { name: "台北101", category: "transport", cost: 150, time: "2h", note: "世界最高綠建築", lat: 25.0339, lon: 121.5644, img: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?w=400&q=80", desc: "台北地標，89樓有觀景台。" },
+    { name: "士林夜市", category: "food", cost: 100, time: "3h", note: "小吃吃到飽", lat: 25.0877, lon: 121.5244, img: "https://images.unsplash.com/photo-1552431742-999330925c48?w=400&q=80", desc: "台北最大、最知名的夜市。" },
+    { name: "中正紀念堂", category: "transport", cost: 0, time: "1h", note: "衛兵交接", lat: 25.0354, lon: 121.5197, img: "https://images.unsplash.com/photo-1597554900742-b0624022a46c?w=400&q=80", desc: "藍白建築，紀念蔣中正。" },
+    { name: "故宮博物院", category: "transport", cost: 80, time: "3h", note: "中華文物", lat: 25.1024, lon: 121.5485, img: "https://images.unsplash.com/photo-1590496793929-36417d3117de?w=400&q=80", desc: "收藏豐富的中華藝術寶庫。" }
+  ],
+  "曼谷": [
+    { name: "大皇宮", category: "transport", cost: 150, time: "3h", note: "金碧輝煌", lat: 13.7500, lon: 100.4913, img: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=400&q=80", desc: "泰國王室的皇宮，玉佛寺所在地。" },
+    { name: "恰圖恰週末市集", category: "shopping", cost: 0, time: "4h", note: "世界最大市集", lat: 13.7992, lon: 100.5502, img: "https://images.unsplash.com/photo-1567406140416-37b03628373b?w=400&q=80", desc: "僅週末開放，攤位超過一萬個。" },
+    { name: "鄭王廟 (黎明寺)", category: "transport", cost: 50, time: "1h", note: "河畔地標", lat: 13.7437, lon: 100.4888, img: "https://images.unsplash.com/photo-1585827618995-17793c764d0d?w=400&q=80", desc: "湄南河畔最著名的寺廟。" },
+    { name: "Iconsiam", category: "shopping", cost: 0, time: "3h", note: "室內水上市場", lat: 13.7267, lon: 100.5108, img: "https://images.unsplash.com/photo-1552550279-08a4197e7222?w=400&q=80", desc: "曼谷最新地標級購物中心。" }
+  ],
+  "倫敦": [
+    { name: "大英博物館", category: "transport", cost: 0, time: "4h", note: "世界文物", lat: 51.5194, lon: -0.1270, img: "https://images.unsplash.com/photo-1565551932483-36c84c7be22d?w=400&q=80", desc: "收藏世界各地的人類文化遺產。" },
+    { name: "倫敦眼", category: "transport", cost: 300, time: "1h", note: "泰晤士河景", lat: 51.5033, lon: -0.1195, img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80", desc: "巨大的摩天輪，可俯瞰倫敦市區。" },
+    { name: "白金漢宮", category: "transport", cost: 0, time: "1h", note: "衛兵交接", lat: 51.5014, lon: -0.1419, img: "https://images.unsplash.com/photo-1577003833170-c08832c3f848?w=400&q=80", desc: "英國君主在倫敦的寢宮。" },
+    { name: "塔橋", category: "transport", cost: 100, time: "1h", note: "經典地標", lat: 51.5055, lon: -0.0754, img: "https://images.unsplash.com/photo-1520986606214-8b456906c813?w=400&q=80", desc: "橫跨泰晤士河的開啟橋。" }
+  ],
+  "巴黎": [
+    { name: "艾菲爾鐵塔", category: "transport", cost: 250, time: "2h", note: "浪漫地標", lat: 48.8584, lon: 2.2945, img: "https://images.unsplash.com/photo-1511739001486-6bfe10ce7859?w=400&q=80", desc: "巴黎的象徵，世界著名建築。" },
+    { name: "羅浮宮", category: "transport", cost: 180, time: "4h", note: "蒙娜麗莎", lat: 48.8606, lon: 2.3376, img: "https://images.unsplash.com/photo-1499856871940-a09627c6dcf6?w=400&q=80", desc: "世界最大博物館之一，收藏豐富。" },
+    { name: "香榭麗舍大道", category: "shopping", cost: 0, time: "2h", note: "精品逛街", lat: 48.8698, lon: 2.3075, img: "https://images.unsplash.com/photo-1509439581779-6298f75bf6e5?w=400&q=80", desc: "巴黎最美麗的街道。" },
+    { name: "凱旋門", category: "transport", cost: 100, time: "1h", note: "壯麗地標", lat: 48.8738, lon: 2.2950, img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80", desc: "拿破崙為紀念勝利而建。" }
+  ],
+  "香港": [
+    { name: "太平山頂", category: "transport", cost: 80, time: "3h", note: "百萬夜景", lat: 22.2759, lon: 114.1455, img: "https://images.unsplash.com/photo-1536739999553-625c52c38827?w=400&q=80", desc: "俯瞰維多利亞港的最佳地點。" },
+    { name: "香港迪士尼樂園", category: "transport", cost: 600, time: "全日", note: "奇妙夢想", lat: 22.3130, lon: 114.0413, img: "https://images.unsplash.com/photo-1550950337-a124c230d7b2?w=400&q=80", desc: "位於大嶼山的迪士尼主題樂園。" },
+    { name: "旺角女人街", category: "shopping", cost: 0, time: "2h", note: "平價購物", lat: 22.3193, lon: 114.1694, img: "https://images.unsplash.com/photo-1543265738-1f10d21888e2?w=400&q=80", desc: "充滿露天攤位的熱鬧街道。" },
+    { name: "維多利亞港", category: "transport", cost: 0, time: "1h", note: "幻彩詠香江", lat: 22.2934, lon: 114.1717, img: "https://images.unsplash.com/photo-1518599801797-737c8d02e8e7?w=400&q=80", desc: "世界三大夜景之一。" }
+  ],
+  "雪梨": [
+    { name: "雪梨歌劇院", category: "transport", cost: 200, time: "2h", note: "內部導覽", lat: -33.8568, lon: 151.2153, img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", desc: "20世紀最具特色的建築之一。" },
+    { name: "邦迪海灘", category: "transport", cost: 0, time: "3h", note: "衝浪與日光浴", lat: -33.8915, lon: 151.2767, img: "https://images.unsplash.com/photo-1523428098666-1a6a90e96033?w=400&q=80", desc: "澳洲最著名的海灘。" },
+    { name: "雪梨魚市場", category: "food", cost: 250, time: "2h", note: "生蠔龍蝦午餐", lat: -33.8732, lon: 151.1923, img: "https://images.unsplash.com/photo-1621316279476-b33344662867?w=400&q=80", desc: "南半球最大的海鮮市場。" },
+    { name: "維多利亞女王大廈", category: "shopping", cost: 0, time: "2h", note: "古蹟內購物", lat: -33.8718, lon: 151.2067, img: "https://images.unsplash.com/photo-1596527588365-d4e77243c220?w=400&q=80", desc: "羅馬式建築風格的購物中心。" }
+  ],
+  "墨爾本": [
+    { name: "普芬比利蒸汽火車", category: "transport", cost: 400, time: "4h", note: "穿越森林", lat: -37.9069, lon: 145.3533, img: "https://images.unsplash.com/photo-1621045239999-ad47742d4757?w=400&q=80", desc: "澳洲最古老的蒸汽火車。" },
+    { name: "大洋路 (十二門徒石)", category: "transport", cost: 600, time: "全日", note: "壯麗海岸線", lat: -38.6635, lon: 143.1042, img: "https://images.unsplash.com/photo-1510265119258-db115b0e8172?w=400&q=80", desc: "世界最美的海岸公路之一。" },
+    { name: "維多利亞女王市場", category: "food", cost: 100, time: "2h", note: "南半球最大露天市場", lat: -37.8076, lon: 144.9568, img: "https://images.unsplash.com/photo-1545652634-9279dc69116e?w=400&q=80", desc: "歷史悠久的市集，美食購物天堂。" },
+    { name: "墨爾本塗鴉巷", category: "transport", cost: 0, time: "1h", note: "街頭藝術", lat: -37.8160, lon: 144.9695, img: "https://images.unsplash.com/photo-1505538460325-5e98b3b65f07?w=400&q=80", desc: "充滿創意的街頭塗鴉文化。" }
+  ],
+  "布里斯本": [
+    { name: "龍柏考拉保護區", category: "transport", cost: 250, time: "3h", note: "抱無尾熊", lat: -27.5337, lon: 152.9687, img: "https://images.unsplash.com/photo-1528026526782-2736173b9e4a?w=400&q=80", desc: "世界最早、最大的無尾熊保護區。" },
+    { name: "南岸公園", category: "transport", cost: 0, time: "2h", note: "人造沙灘", lat: -27.4812, lon: 153.0234, img: "https://images.unsplash.com/photo-1562657523-2679c2937397?w=400&q=80", desc: "布里斯本河畔的休閒娛樂區。" },
+    { name: "故事橋", category: "transport", cost: 500, time: "2h", note: "攀爬體驗", lat: -27.4637, lon: 153.0360, img: "https://images.unsplash.com/photo-1565606689059-880e25331369?w=400&q=80", desc: "可攀爬的懸臂橋，俯瞰城市。" }
+  ],
+  "黃金海岸": [
+    { name: "衝浪者天堂", category: "transport", cost: 0, time: "3h", note: "無盡沙灘", lat: -28.0025, lon: 153.4296, img: "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=400&q=80", desc: "黃金海岸的中心，摩天大樓與海灘。" },
+    { name: "華納電影世界", category: "transport", cost: 500, time: "全日", note: "主題樂園", lat: -27.9090, lon: 153.3130, img: "https://images.unsplash.com/photo-1513883049090-d0b7439799bf?w=400&q=80", desc: "南半球的好萊塢，刺激遊樂設施。" },
+    { name: "海洋世界", category: "transport", cost: 500, time: "全日", note: "海洋動物", lat: -27.9559, lon: 153.4250, img: "https://images.unsplash.com/photo-1574949364680-e18d164797e9?w=400&q=80", desc: "與海洋生物互動的主題樂園。" }
+  ],
+  // 預設 (Fallback)
+  "default": [
+    { name: "市中心地標", category: "transport", cost: 0, time: "1h", note: "打卡點", lat: 0, lon: 0, img: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80", desc: "城市中心。" },
+    { name: "當地博物館", category: "transport", cost: 100, time: "2h", note: "文化體驗", lat: 0, lon: 0, img: "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?w=400&q=80", desc: "收藏豐富的文化遺產。" }
+  ]
 };
 
 const calculateDistance = (lat1, lon1, lat2, lon2) => { const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2); return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); };
@@ -206,7 +302,9 @@ const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
 
 function TravelApp() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('dashboard'); 
+  const [view, setView] = useState('dashboard'); // 'dashboard', 'create-trip', 'trip-detail'
+  const [step, setStep] = useState(0); // Wizard Step
+  
   const [currentTrip, setCurrentTrip] = useState(null);
   const [trips, setTrips] = useState([]);
   const [items, setItems] = useState([]);
