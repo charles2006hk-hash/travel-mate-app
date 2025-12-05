@@ -486,8 +486,9 @@ function TravelApp() {
                   <p className="text-sm text-gray-500 mt-1 flex items-center gap-1"><Calendar size={14}/> {trip.startDate} ~ {trip.endDate}</p>
                   
                   <div className="flex flex-wrap gap-2 mt-3">
-                    {trip.travelers.toddlers > 0 && <span className="text-xs bg-pink-50 text-pink-600 px-2 py-1 rounded-full flex items-center gap-1"><Baby size={12}/> 幼兒隨行</span>}
-                    {trip.travelers.elderly > 0 && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-1 rounded-full flex items-center gap-1"><Accessibility size={12}/> 長者隨行</span>}
+                    {/* 使用 Optional Chaining 防呆，避免舊資料造成當機 */}
+                    {trip.travelers?.toddlers > 0 && <span className="text-xs bg-pink-50 text-pink-600 px-2 py-1 rounded-full flex items-center gap-1"><Baby size={12}/> 幼兒隨行</span>}
+                    {trip.travelers?.elderly > 0 && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-1 rounded-full flex items-center gap-1"><Accessibility size={12}/> 長者隨行</span>}
                     {trip.purpose === 'shopping' && <span className="text-xs bg-yellow-50 text-yellow-600 px-2 py-1 rounded-full flex items-center gap-1"><ShoppingBag size={12}/> 購物團</span>}
                   </div>
                 </div>
