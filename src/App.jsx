@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithPopup } from "firebase/auth";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from "firebase/firestore";
@@ -10,7 +10,7 @@ import {
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
   ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car,
   Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight, Share,
-  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Bed, Ticket
+  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Bed, Ticket, Phone
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -34,22 +34,22 @@ const APP_ID = "travel-mate-app-7ca34";
 // --- 3. 資料庫與常數 ---
 
 const CITY_DATA = {
-  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi" },
+  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi" },
   "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", intro: "北國雪景與美食。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", intro: "九州門戶。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
+  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", intro: "九州門戶，拉麵聖地。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
   "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", intro: "海港城市。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
-  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688" },
-  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab" },
-  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
-  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber" },
-  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
-  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", intro: "澳洲最大城市。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", intro: "文化與咖啡之都。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", intro: "陽光之城。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", intro: "衝浪者的天堂。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688" },
+  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab" },
+  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
+  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber" },
+  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / HKTaxi" },
+  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", intro: "澳洲最大城市，雪梨歌劇院與港灣大橋是世界級地標。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", intro: "澳洲文化與咖啡之都，充滿藝術巷弄。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", intro: "陽光之城，擁有美麗的南岸公園。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", intro: "衝浪者的天堂，擁有綿延的沙灘。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
 };
 
 const POPULAR_CITIES = Object.keys(CITY_DATA);
@@ -134,54 +134,38 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
-// 農曆與節日簡易查詢 (2024-2025 部分資料模擬)
 const getLunarInfo = (date) => {
   const y = date.getFullYear();
   const m = date.getMonth() + 1;
   const d = date.getDate();
-  
-  // 公曆節日
   if (m === 1 && d === 1) return "元旦";
   if (m === 2 && d === 14) return "情人節";
-  if (m === 4 && d === 4) return "兒童節"; // 港台
+  if (m === 4 && d === 4) return "兒童節"; 
   if (m === 5 && d === 1) return "勞動節";
   if (m === 10 && d === 1) return "國慶";
   if (m === 12 && d === 25) return "聖誕";
   if (m === 12 && d === 31) return "除夕";
-
-  // 簡易農曆模擬 (每 29.5 天) - 僅作「初一/十五」示意，非精確天文算法
-  // 基準: 2024-02-10 是春節 (初一)
   const baseDate = new Date(2024, 1, 10);
   const diffDays = Math.floor((date - baseDate) / 86400000);
-  const lunarDayIndex = (diffDays % 29 + 29) % 29 + 1; // 1-29
-
+  const lunarDayIndex = (diffDays % 29 + 29) % 29 + 1;
   if (lunarDayIndex === 1) return "初一";
   if (lunarDayIndex === 15) return "十五";
-  
-  // 特定農曆節日 (模擬日期)
   if (y === 2024 && m === 2 && d === 10) return "春節";
   if (y === 2024 && m === 9 && d === 17) return "中秋";
   if (y === 2025 && m === 1 && d === 29) return "春節";
-
   return null;
 };
 
-// 升級版日曆：顯示節假日
 const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
-  // 使用本地時間防止時區問題
   const [currentMonth, setCurrentMonth] = useState(startDate ? new Date(startDate) : new Date());
   
   const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
-  const formatDate = (y, m, d) => {
-    // 強制格式化為 YYYY-MM-DD 本地時間
-    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  };
+  const formatDate = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
   const handleDateClick = (day) => {
     const dateStr = formatDate(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-
     if (!startDate || (startDate && endDate)) {
       onChange({ startDate: dateStr, endDate: '' });
     } else {
@@ -233,18 +217,7 @@ const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
           const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
 
           return (
-            <button
-              key={day}
-              type="button"
-              onClick={() => handleDateClick(day)}
-              className={`h-10 w-full rounded-lg text-xs flex flex-col items-center justify-center transition-all relative border border-transparent
-                ${selected ? 'bg-blue-600 text-white font-bold shadow-md z-10' : ''}
-                ${inRange ? 'bg-blue-100 text-blue-800 rounded-none' : ''}
-                ${!selected && !inRange ? 'hover:bg-gray-100' : ''}
-                ${today && !selected ? 'border-yellow-400 bg-yellow-50' : ''}
-                ${(isWeekend || holiday) && !selected && !inRange ? 'text-red-500' : ''}
-              `}
-            >
+            <button key={day} type="button" onClick={() => handleDateClick(day)} className={`h-10 w-full rounded-lg text-xs flex flex-col items-center justify-center transition-all relative border border-transparent ${selected ? 'bg-blue-600 text-white font-bold shadow-md z-10' : ''} ${inRange ? 'bg-blue-100 text-blue-800 rounded-none' : ''} ${!selected && !inRange ? 'hover:bg-gray-100' : ''} ${today && !selected ? 'border-yellow-400 bg-yellow-50' : ''} ${(isWeekend || holiday) && !selected && !inRange ? 'text-red-500' : ''}`}>
               <span>{day}</span>
               {holiday && <span className={`text-[9px] scale-90 ${selected ? 'text-blue-200' : 'text-red-400'}`}>{holiday}</span>}
             </button>
@@ -256,8 +229,7 @@ const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
   );
 };
 
-// --- Helper Functions (Expanded POI & Costs) ---
-
+// --- Expanded POI Database ---
 const POI_DB = {
   "東京": [
     { name: "東京迪士尼樂園", cost: 600, cat: "sightseeing", time: "全日", note: "夢幻王國" },
@@ -265,21 +237,39 @@ const POI_DB = {
     { name: "晴空塔", cost: 200, cat: "sightseeing", time: "2h", note: "俯瞰東京" },
     { name: "澀谷 SHIBUYA SKY", cost: 150, cat: "sightseeing", time: "1.5h", note: "網美必去" },
     { name: "豐洲市場壽司大", cost: 300, cat: "food", time: "2h", note: "早起排隊" },
-    { name: "新宿御苑", cost: 40, cat: "sightseeing", time: "2h", note: "賞櫻勝地" }
+    { name: "新宿御苑", cost: 40, cat: "sightseeing", time: "2h", note: "賞櫻勝地" },
+    { name: "明治神宮", cost: 0, cat: "sightseeing", time: "2h", note: "市中心森林" },
+    { name: "秋葉原電器街", cost: 0, cat: "shopping", time: "3h", note: "動漫聖地" },
+    { name: "六本木之丘", cost: 120, cat: "sightseeing", time: "2h", note: "夜景與美術館" },
+    { name: "銀座", cost: 0, cat: "shopping", time: "3h", note: "高級購物區" }
   ],
   "大阪": [
     { name: "環球影城 USJ", cost: 650, cat: "sightseeing", time: "全日", note: "任天堂世界" },
     { name: "大阪城天守閣", cost: 50, cat: "sightseeing", time: "2h", note: "歷史古蹟" },
     { name: "海遊館", cost: 180, cat: "sightseeing", time: "3h", note: "世界最大級水族館" },
     { name: "道頓堀美食", cost: 200, cat: "food", time: "3h", note: "章魚燒吃到飽" },
-    { name: "梅田藍天大廈", cost: 100, cat: "sightseeing", time: "1h", note: "絕美夜景" }
+    { name: "梅田藍天大廈", cost: 100, cat: "sightseeing", time: "1h", note: "絕美夜景" },
+    { name: "黑門市場", cost: 150, cat: "food", time: "2h", note: "大阪的廚房" },
+    { name: "通天閣", cost: 60, cat: "sightseeing", time: "1.5h", note: "新世界懷舊風情" },
+    { name: "心齋橋筋", cost: 0, cat: "shopping", time: "3h", note: "藥妝購物天堂" }
   ],
   "雪梨": [
     { name: "雪梨歌劇院", cost: 200, cat: "sightseeing", time: "2h", note: "內部導覽" },
     { name: "攀登港灣大橋", cost: 1500, cat: "adventure", time: "3h", note: "極限體驗" },
     { name: "塔龍加動物園", cost: 300, cat: "sightseeing", time: "4h", note: "看無尾熊與長頸鹿" },
     { name: "邦迪海灘", cost: 0, cat: "sightseeing", time: "3h", note: "衝浪與日光浴" },
-    { name: "魚市場午餐", cost: 250, cat: "food", time: "2h", note: "新鮮生蠔龍蝦" }
+    { name: "魚市場午餐", cost: 250, cat: "food", time: "2h", note: "新鮮生蠔龍蝦" },
+    { name: "達令港", cost: 0, cat: "sightseeing", time: "2h", note: "港邊散步" },
+    { name: "岩石區", cost: 0, cat: "sightseeing", time: "2h", note: "歷史街區" },
+    { name: "維多利亞女王大廈", cost: 0, cat: "shopping", time: "2h", note: "古蹟商場" }
+  ],
+  "墨爾本": [
+    { name: "普芬比利蒸汽火車", cost: 400, cat: "sightseeing", time: "4h", note: "穿越森林" },
+    { name: "菲利普島企鵝歸巢", cost: 800, cat: "sightseeing", time: "5h", note: "神仙企鵝" },
+    { name: "大洋路一日遊", cost: 600, cat: "adventure", time: "全日", note: "十二門徒石" },
+    { name: "維多利亞女王市場", cost: 100, cat: "food", time: "2h", note: "美食與市集" },
+    { name: "塗鴉巷 (Hosier Lane)", cost: 0, cat: "sightseeing", time: "1h", note: "街頭藝術" },
+    { name: "墨爾本動物園", cost: 250, cat: "sightseeing", time: "3h", note: "市區動物園" }
   ]
 };
 
@@ -383,7 +373,6 @@ function TravelApp() {
 
   const calculateEstimatedBudget = () => {
     if (!newTrip.startDate || !newTrip.endDate) return;
-    // 使用字串比較防止 crash
     if (newTrip.endDate < newTrip.startDate) return;
 
     const cityInfo = CITY_DATA[newTrip.destination];
@@ -397,7 +386,7 @@ function TravelApp() {
     const end = new Date(newTrip.endDate);
     const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
     
-    if (isNaN(days)) return; // 安全檢查
+    if (isNaN(days)) return;
 
     const flightCount = newTrip.travelers.adults + newTrip.travelers.children + newTrip.travelers.elderly + (newTrip.travelers.toddlers * 0.1);
     const totalPeople = newTrip.travelers.adults + newTrip.travelers.children * 0.8 + newTrip.travelers.toddlers * 0.2 + newTrip.travelers.elderly * 0.9;
@@ -486,6 +475,7 @@ function TravelApp() {
   const openTrip = (trip) => { setCurrentTrip(trip); setView('trip-detail'); setNewItem({ ...newItem, date: trip.startDate, currency: CITY_DATA[trip.destination]?.currency || 'HKD' }); };
   const handleForeignCostChange = (amount, currency) => { const rate = EXCHANGE_RATES[currency] || 1; setNewItem(prev => ({ ...prev, foreignCost: amount, currency: currency, cost: Math.round(amount * rate) })); };
   
+  // FIX: weight default value issue
   const addItem = async (e) => {
     e.preventDefault(); if ((!newItem.title && !newItem.pName) && !checkInModal) return; if (currentTrip.isLocked) return showToast("已鎖定", "error");
     if (activeTab === 'people') {
@@ -493,8 +483,28 @@ function TravelApp() {
         setNewItem({...newItem, pName:'', pId:'', pPhone:'', pRoom:''}); return showToast("人員已新增", "success");
     }
     let finalNotes = newItem.notes; if (newItem.foreignCost && newItem.currency !== 'HKD') finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${finalNotes}`;
-    let finalWeight = newItem.weight, finalVolume = 0; if (newItem.type === 'packing') { const defs = ITEM_DEFINITIONS[newItem.title]; if (defs && finalWeight === 0) { finalWeight = defs.weight; finalVolume = defs.volume; } }
-    const payload = { ...newItem, notes: finalNotes, weight: finalWeight, volume: finalVolume, tripId: currentTrip.id, completed: false, createdAt: serverTimestamp() };
+    
+    // Explicitly set 0 if undefined to avoid Firebase error
+    let finalWeight = newItem.weight || 0; 
+    let finalVolume = 0; 
+    
+    if (newItem.type === 'packing') { 
+        const defs = ITEM_DEFINITIONS[newItem.title]; 
+        if (defs) { 
+            finalWeight = defs.weight || 0; 
+            finalVolume = defs.volume || 0; 
+        } 
+    }
+    const payload = { 
+        ...newItem, 
+        notes: finalNotes, 
+        weight: finalWeight, 
+        volume: finalVolume, 
+        cost: Number(newItem.cost) || 0,
+        tripId: currentTrip.id, 
+        completed: false, 
+        createdAt: serverTimestamp() 
+    };
     if (editingItem) { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', editingItem), payload); setEditingItem(null); } else { await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), payload); }
     if (newItem.cost || newItem.type === 'budget') setTimeout(() => updateTripActualCost(currentTrip.id), 500);
     setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '', quantity: 1, weight: 0, startTime: '', duration: '' }); setCheckInModal(false);
@@ -561,6 +571,28 @@ function TravelApp() {
             </div>
             <div className="w-[35%] space-y-8">
                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 break-inside-avoid"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-sm uppercase"><Calculator size={14}/> 財務概況</h3><div className="space-y-2 text-sm"><div className="flex justify-between"><span>總預算</span><span className="font-bold">${currentTrip.estimatedBudget?.toLocaleString()}</span></div><div className="flex justify-between text-blue-600"><span>預計支出</span><span className="font-bold">${budgetStats.total.toLocaleString()}</span></div></div></div>
+               {/* 新增：同行人員 */}
+               <div className="break-inside-avoid">
+                  <h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Users size={14}/> 同行人員</h3>
+                  <div className="text-xs text-gray-600 space-y-2">
+                     {items.filter(i => i.type === 'people').map(p => (
+                        <div key={p.id} className="flex justify-between border-b border-gray-100 pb-1">
+                           <span className="font-bold">{p.title}</span>
+                           <span className="text-gray-400">{p.notes?.split(' ')[1]}</span>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+               <div className="break-inside-avoid">
+                  <h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Briefcase size={14}/> 必帶物品</h3>
+                  <div className="text-xs text-gray-600 space-y-1">
+                     {items.filter(i => i.type === 'packing').map(item => (
+                        <div key={item.id} className="flex items-center gap-2">
+                           <div className="w-3 h-3 border border-gray-400 rounded-sm"></div><span>{item.title}</span>{item.quantity > 1 && <span className="text-gray-400">x{item.quantity}</span>}
+                        </div>
+                     ))}
+                  </div>
+               </div>
             </div>
          </div>
       </div>
