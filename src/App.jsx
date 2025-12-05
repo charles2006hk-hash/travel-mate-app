@@ -109,6 +109,11 @@ const Toast = ({ message, type, onClose }) => {
   return <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 ${type === 'error' ? 'bg-red-500' : 'bg-green-600'} text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 z-[100] animate-bounce-in font-bold border border-white/20 backdrop-blur-md`}><CheckCircle2 size={20} /><span className="text-sm">{message}</span></div>;
 };
 
+const WeatherIconComponent = ({ iconName }) => {
+  const Icon = WEATHER_ICONS[iconName] || Sun;
+  return <Icon size={14} />;
+};
+
 const getLunarInfo = (date) => {
   const m = date.getMonth() + 1; const d = date.getDate();
   if (m === 1 && d === 1) return "元旦"; if (m === 12 && d === 25) return "聖誕"; if (m === 4 && d === 4) return "兒童";
@@ -275,7 +280,7 @@ function TravelApp() {
   useEffect(() => { if (newTrip.destination && newTrip.startDate && newTrip.endDate) calculateEstimatedBudget(); }, [newTrip.destination, newTrip.startDate, newTrip.endDate, newTrip.travelers, newTrip.purpose, newTrip.flightType, newTrip.hotelType]);
 
   // CRUD & Actions
-  const handleGoogleLink = async () => { try { if (user.isAnonymous) await linkWithPopup(user, googleProvider); else showToast("已登入", "success"); } catch (error) { if (error.code === 'auth/credential-already-in-use') { if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider); } else { showToast("登入失敗，請確認瀏覽器是否阻擋彈窗", "error"); } } };
+  const handleGoogleLink = async () => { try { if (user.isAnonymous) await linkWithPopup(user, googleProvider); else showToast("已登入", "success"); } catch (error) { if (error.code === 'auth/credential-already-in-use') { if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider); } else { showToast("登入失敗，請檢查瀏覽器是否阻擋彈窗", "error"); } } };
   const handleExportData = () => { const data = { user: user.uid, trips: trips, items: items, exportedAt: new Date().toISOString() }; const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `travel_backup.json`; a.click(); };
   const toggleTripLock = async () => { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', currentTrip.id), { isLocked: !currentTrip.isLocked }); setCurrentTrip(prev => ({...prev, isLocked: !prev.isLocked})); showToast(currentTrip.isLocked ? "行程已解鎖" : "行程已鎖定", "success"); };
   const handlePrint = () => window.print();
@@ -317,6 +322,7 @@ function TravelApp() {
   const openTrip = (trip) => { setCurrentTrip(trip); setView('trip-detail'); setNewItem({ ...newItem, date: trip.startDate, currency: CITY_DATA[trip.destination]?.currency || 'HKD' }); };
   const handleForeignCostChange = (amount, currency) => { const rate = EXCHANGE_RATES[currency] || 1; setNewItem(prev => ({ ...prev, foreignCost: amount, currency: currency, cost: Math.round(amount * rate) })); };
   
+  // FIX: weight/volume default value issue
   const addItem = async (e) => {
     if(e) e.preventDefault();
     if ((!newItem.title && !newItem.pName) && !checkInModal) return; if (currentTrip.isLocked) return showToast("已鎖定", "error");
@@ -388,6 +394,11 @@ function TravelApp() {
     </div>
   );
 
+  const WeatherIconComponent = ({ iconName }) => {
+      const Icon = WEATHER_ICONS[iconName] || Sun;
+      return <Icon size={14} />;
+  };
+
   const ReportTemplate = () => {
     if (!currentTrip) return null;
     const dayDiff = Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1);
@@ -406,13 +417,12 @@ function TravelApp() {
                   {dateArray.map((dateStr, idx) => {
                      const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
                      const w = weatherData[dateStr];
-                     const WeatherIcon = w ? WEATHER_ICONS[w.iconKey] : Sun;
                      return (
                         <div key={dateStr} className="relative pl-4 border-l-2 border-gray-200 break-inside-avoid">
                            <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-blue-600"></div>
                            <div className="flex justify-between items-center mb-2">
                               <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Day {idx+1} • {dateStr}</h3>
-                              {w && <div className="flex items-center gap-1 text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded-full"><WeatherIcon size={12}/> {w.desc}</div>}
+                              {w && <div className="flex items-center gap-1 text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded-full"><WeatherIconComponent iconName={w.iconKey} /> {w.desc} {w.max}°</div>}
                            </div>
                            {dayItems.map(item => (<div key={item.id} className="text-sm"><span className="font-bold text-gray-800 mr-2">{item.startTime || '待定'}</span><span className="text-gray-700">{item.title}</span></div>))}
                         </div>
@@ -460,16 +470,16 @@ function TravelApp() {
                  </div>
                  <div className="p-4">
                     <div className="flex justify-between items-center text-sm text-gray-500 mb-3">
-                       <span className="flex items-center gap-1"><CalIcon size={14}/> {trip.startDate}</span>
+                       <span className="flex items-center gap-1 font-bold"><CalIcon size={14}/> {trip.startDate}</span>
                        {trip.startDate && trip.endDate && (
-                         <span className="bg-gray-100 px-2 py-1 rounded text-xs">
+                         <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold">
                            {Math.max(1, Math.ceil((new Date(trip.endDate) - new Date(trip.startDate))/(86400000))+1)} 天
                          </span>
                        )}
                     </div>
                     <div className="flex gap-2">
-                       <div className="flex-1 bg-green-50 rounded-lg p-2 text-center"><div className="text-[10px] text-green-600 uppercase font-bold">預算</div><div className="text-sm font-bold text-green-800">${trip.estimatedBudget?.toLocaleString()}</div></div>
-                       <div className="flex-1 bg-blue-50 rounded-lg p-2 text-center"><div className="text-[10px] text-blue-600 uppercase font-bold">實際</div><div className="text-sm font-bold text-blue-800">${trip.actualCost?.toLocaleString() || 0}</div></div>
+                       <div className="flex-1 bg-green-50 rounded-lg p-2 text-center"><div className="text-[10px] text-green-600 uppercase font-bold">預算</div><div className="text-sm font-bold text-green-800">${Number(trip.estimatedBudget || 0).toLocaleString()}</div></div>
+                       <div className="flex-1 bg-blue-50 rounded-lg p-2 text-center"><div className="text-[10px] text-blue-600 uppercase font-bold">實際</div><div className="text-sm font-bold text-blue-800">${Number(trip.actualCost || 0).toLocaleString()}</div></div>
                     </div>
                  </div>
                </div>
@@ -648,12 +658,13 @@ function TravelApp() {
 
         {activeTab === 'itinerary' && (
           <div className="space-y-6">
+            {/* Emergency & Ride Cards */}
             <div className="grid grid-cols-2 gap-3 mb-4 print:hidden">
                <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex flex-col gap-2">
                   <div className="text-xs text-red-500 font-bold flex items-center gap-1"><Siren size={12}/> 緊急電話</div>
                   <div className="flex gap-2">
-                     <a href={`tel:${CITY_DATA[currentTrip.destination]?.emergency.police}`} className="flex-1 bg-white text-red-600 rounded-lg py-2 text-center text-xs font-bold shadow-sm">報警</a>
-                     <a href={`tel:${CITY_DATA[currentTrip.destination]?.emergency.ambulance}`} className="flex-1 bg-white text-red-600 rounded-lg py-2 text-center text-xs font-bold shadow-sm">急救</a>
+                     <a href={`tel:${CITY_DATA[currentTrip.destination]?.emergency?.police}`} className="flex-1 bg-white text-red-600 rounded-lg py-2 text-center text-xs font-bold shadow-sm">報警</a>
+                     <a href={`tel:${CITY_DATA[currentTrip.destination]?.emergency?.ambulance}`} className="flex-1 bg-white text-red-600 rounded-lg py-2 text-center text-xs font-bold shadow-sm">急救</a>
                   </div>
                </div>
                <div className="bg-green-50 border border-green-100 p-4 rounded-2xl flex flex-col justify-between">
@@ -663,11 +674,11 @@ function TravelApp() {
             </div>
             <div className="flex gap-2 print:hidden"><button onClick={handleCheckIn} className={`flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-md text-sm font-bold flex gap-2 items-center justify-center ${currentTrip.isLocked ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={currentTrip.isLocked}><Camera size={18} /> 足跡打卡</button></div>
             
+            {/* Day Lists */}
             {Array.from({length: Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1)}).map((_, idx) => {
                const dateStr = new Date(new Date(currentTrip.startDate).getTime() + idx * 86400000).toISOString().split('T')[0];
                const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
                const w = weatherData[dateStr];
-               
                return (
                  <div key={dateStr} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-4 pb-2 border-b">
@@ -689,7 +700,7 @@ function TravelApp() {
                            <div className={`absolute -left-[5px] top-1 w-2 h-2 rounded-full ${item.isCheckIn ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
                            <div className="flex-1 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}>
                               <div className="flex justify-between"><span className="font-bold text-gray-800 text-sm">{item.title}</span><span className="text-xs text-gray-400 font-mono">{item.startTime}</span></div>
-                              <div className="text-xs text-gray-500 mt-1 flex gap-2">{item.duration && <span className="flex items-center gap-1"><Clock size={10}/> {item.duration}</span>}{item.cost > 0 && <span className="text-orange-500 font-bold flex items-center gap-1"><Ticket size={10}/> ${item.cost}</span>}</div>
+                              <div className="text-xs text-gray-500 mt-1 flex gap-2">{item.duration && <span className="flex items-center gap-1"><Clock size={10}/> {item.duration}</span>}{Number(item.cost) > 0 && <span className="text-orange-500 font-bold flex items-center gap-1"><Ticket size={10}/> ${item.cost}</span>}</div>
                               {item.notes && <div className="text-xs text-gray-500 mt-2 bg-gray-50 p-2 rounded">{item.notes}</div>}
                            </div>
                            {!currentTrip.isLocked && <button onClick={() => deleteItem(item.id)} className="text-gray-300 hover:text-red-400 self-start"><Trash2 size={14}/></button>}
@@ -713,7 +724,7 @@ function TravelApp() {
         {activeTab === 'budget' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-2xl shadow-lg flex justify-between items-center"><div><p className="text-emerald-100 text-xs uppercase">總支出 (HKD)</p><h2 className="text-3xl font-bold mt-1">${budgetStats.total.toLocaleString()}</h2></div><div className="text-right"><p className="text-emerald-100 text-xs uppercase">預算剩餘</p><h3 className={`text-xl font-bold mt-1`}>${(currentTrip.estimatedBudget - budgetStats.total).toLocaleString()}</h3></div></div>
-            <div className="bg-white rounded-xl border divide-y">{items.filter(i=>i.cost > 0 && (i.type==='budget'||i.type==='itinerary')).sort((a,b)=>b.createdAt-a.createdAt).map(item => (<div key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}><div className="flex items-center gap-3"><div className={`p-2 rounded-full bg-gray-50 ${BUDGET_CATEGORIES[item.category]?.color}`}>{(() => { const Icon = BUDGET_CATEGORIES[item.category]?.icon || Circle; return <Icon size={16}/> })()}</div><div><div className="text-sm font-medium text-gray-800">{item.title}</div><div className="text-xs text-gray-400">{item.notes}</div></div></div><div className="font-bold text-gray-700">${Number(item.cost).toLocaleString()}</div></div>))}</div>
+            <div className="bg-white rounded-xl border divide-y">{items.filter(i=>Number(i.cost) > 0 && (i.type==='budget'||i.type==='itinerary')).sort((a,b)=>b.createdAt-a.createdAt).map(item => (<div key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}><div className="flex items-center gap-3"><div className={`p-2 rounded-full bg-gray-50 ${BUDGET_CATEGORIES[item.category]?.color}`}>{(() => { const Icon = BUDGET_CATEGORIES[item.category]?.icon || Circle; return <Icon size={16}/> })()}</div><div><div className="text-sm font-medium text-gray-800">{item.title}</div><div className="text-xs text-gray-400">{item.notes}</div></div></div><div className="font-bold text-gray-700">${Number(item.cost).toLocaleString()}</div></div>))}</div>
           </div>
         )}
 
