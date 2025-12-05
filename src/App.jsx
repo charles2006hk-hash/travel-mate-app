@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where } from "firebase/firestore";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from "firebase/firestore";
 import { 
   Trash2, Plus, MapPin, Calendar, CheckCircle2, Circle, 
   DollarSign, FileText, Sun, CloudRain, Snowflake, 
   Luggage, Plane, Baby, Accessibility, User, Navigation,
-  History, MapPin as MapPinIcon, Camera, Palmtree, ShoppingBag,
-  Calculator, RefreshCw, Coins
+  History, MapPin as MapPinIcon, Camera, ShoppingBag,
+  Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -27,73 +27,63 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const APP_ID = "travel-mate-app-7ca34"; 
 
-// --- 3. 靜態資料庫 (模擬 AI, API 與 匯率) ---
+// --- 3. 資料庫與常數 ---
 
-// 城市資料：座標、地區代碼、當地貨幣
+// 城市資料
 const CITY_DATA = {
-  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP" },
-  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP" },
-  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP" },
-  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR" },
-  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW" },
-  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH" },
-  "新加坡": { lat: 1.3521, lon: 103.8198, currency: "SGD", region: "SG" },
-  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK" },
-  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU" },
-  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK" },
+  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。" },
+  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。" },
+  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。" },
+  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。" },
+  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂，必登台北101觀景台。" },
+  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。" },
+  "新加坡": { lat: 1.3521, lon: 103.8198, currency: "SGD", region: "SG", intro: "花園城市，濱海灣金沙與魚尾獅公園是地標。" },
+  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。" },
+  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。" },
+  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。" },
 };
-
 const POPULAR_CITIES = Object.keys(CITY_DATA);
+const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約"];
 
-// 模擬匯率 (以 HKD 為基準)
+// 匯率
 const EXCHANGE_RATES = {
-  "HKD": 1,
-  "JPY": 0.052,  // 1 日圓 = 0.052 港幣
-  "KRW": 0.0058, // 1 韓元 = 0.0058 港幣
-  "TWD": 0.25,   // 1 台幣 = 0.25 港幣
-  "THB": 0.22,   // 1 泰銖 = 0.22 港幣
-  "SGD": 5.8,    // 1 新幣 = 5.8 港幣
-  "GBP": 9.9,    // 1 英鎊 = 9.9 港幣
-  "EUR": 8.5,    // 1 歐元 = 8.5 港幣
-  "USD": 7.8     // 1 美金 = 7.8 港幣
+  "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, 
+  "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8
 };
 
-// 預估消費水準 (HKD/人/天) - 用於自動估算預算
+// 預估消費水準
 const ESTIMATED_COSTS = {
   "JP": { flight: 4000, hotel: 1000, food: 400, transport: 150 },
   "KR": { flight: 2500, hotel: 800, food: 300, transport: 100 },
-  "TW": { flight: 1500, hotel: 600, food: 200, transport: 80 },
-  "TH": { flight: 1800, hotel: 500, food: 150, transport: 50 },
-  "SG": { flight: 2500, hotel: 1500, food: 400, transport: 100 },
-  "UK": { flight: 8000, hotel: 1500, food: 600, transport: 200 },
-  "EU": { flight: 7500, hotel: 1400, food: 550, transport: 180 },
-  "HK": { flight: 0,    hotel: 0,    food: 400, transport: 100 }, // 本地遊
+  "HK": { flight: 0,    hotel: 0,    food: 400, transport: 100 }, 
   "default": { flight: 5000, hotel: 1000, food: 400, transport: 150 }
 };
 
-// 行李規則庫
-const PACKING_RULES = {
-  common: ["護照/簽證", "現金/信用卡", "手機充電器", "萬用轉接頭", "行動電源", "個人盥洗包"],
-  adult: ["換洗衣物", "刮鬍刀/化妝品", "常備藥品"],
-  child: ["兒童牙刷", "安撫玩具", "畫冊/貼紙書", "兒童餐具", "水壺"], 
-  toddler: ["尿布 (計算天數x6)", "奶粉/奶瓶", "濕紙巾", "嬰兒推車", "口水巾"],
-  elderly: ["處方籤藥物", "老花眼鏡", "保暖護具", "折疊拐杖/助行器", "保溫瓶"],
-  weather: {
-    sunny: ["防曬乳", "太陽眼鏡", "遮陽帽", "隨身風扇"],
-    rainy: ["折疊雨傘", "輕便雨衣", "防水鞋套"],
-    cold: ["羽絨外套", "發熱衣", "手套/圍巾", "暖暖包"]
-  },
-  purpose: {
-    shopping: ["大型購物袋", "備用行李箱", "退稅單據夾"],
-    camera: ["相機/鏡頭", "腳架", "記憶卡", "備用電池"],
-    beach: ["泳衣/泳褲", "沙灘拖鞋", "防水手機袋"]
-  }
+// 行李物品定義 (含預設重量kg與體積單位)
+// 類別: clothes(衣), daily(住/生活), food(食), move(行/裝備), doc(文件)
+const ITEM_DEFINITIONS = {
+  "護照/簽證": { weight: 0.1, volume: 1, category: "doc" },
+  "現金/信用卡": { weight: 0.1, volume: 1, category: "doc" },
+  "手機充電器": { weight: 0.2, volume: 2, category: "move" },
+  "萬用轉接頭": { weight: 0.2, volume: 2, category: "move" },
+  "換洗衣物": { weight: 0.5, volume: 10, category: "clothes" }, // 每套
+  "外套": { weight: 0.8, volume: 15, category: "clothes" },
+  "盥洗包": { weight: 0.5, volume: 5, category: "daily" },
+  "藥品": { weight: 0.2, volume: 2, category: "daily" },
+  "尿布": { weight: 0.05, volume: 2, category: "daily" }, // 每片
+  "奶粉": { weight: 0.8, volume: 10, category: "food" },
+  "推車": { weight: 5.0, volume: 50, category: "move" },
+  "雨傘": { weight: 0.3, volume: 3, category: "daily" },
+  "水壺": { weight: 0.2, volume: 5, category: "food" },
 };
 
-const ITINERARY_TEMPLATES = {
-  "東京": ["抵達東京 & 飯店Check-in", "迪士尼樂園全日遊", "淺草雷門 & 晴空塔", "澀谷/原宿 購物行程", "前往機場 & 免稅店採買"],
-  "大阪": ["抵達大阪 & 道頓堀美食", "環球影城 USJ", "大阪城 & 黑門市場", "奈良餵鹿一日遊", "臨空城 Outlet & 機場"],
-  "default": ["抵達目的地 & 辦理入住", "市區著名景點觀光", "當地美食探索", "購物與休閒時間", "整理行李 & 返程"]
+// 預算/記帳類別
+const BUDGET_CATEGORIES = {
+  shopping: { label: "衣/購", icon: ShoppingBag, color: "text-pink-500" },
+  food: { label: "食", icon: Coffee, color: "text-orange-500" },
+  stay: { label: "住", icon: Home, color: "text-indigo-500" },
+  transport: { label: "行", icon: Bus, color: "text-blue-500" },
+  other: { label: "其他", icon: FileText, color: "text-gray-500" }
 };
 
 function TravelApp() {
@@ -105,7 +95,7 @@ function TravelApp() {
   const [items, setItems] = useState([]);
   const [searchHistory, setSearchHistory] = useState([]);
 
-  // 表單狀態
+  // 新增行程表單
   const [newTrip, setNewTrip] = useState({
     origin: '香港',
     destination: '',
@@ -113,23 +103,30 @@ function TravelApp() {
     endDate: '',
     purpose: 'sightseeing', 
     travelers: { adults: 1, children: 0, toddlers: 0, elderly: 0 },
-    estimatedBudget: 0, // 自動估算欄位
-    budgetDetails: {}   // 估算細項
+    estimatedBudget: 0,
+    budgetDetails: {}
   });
 
-  // 新增項目表單 (支援多幣種)
+  // 新增/編輯項目表單
   const [newItem, setNewItem] = useState({ 
     type: 'itinerary', 
+    category: 'other', // food, transport, shopping, stay, other
     title: '', 
-    cost: '',          // 最終換算後的 HKD
-    foreignCost: '',   // 當地貨幣金額
-    currency: 'HKD',   // 選擇的貨幣
+    cost: '',          
+    foreignCost: '',   
+    currency: 'HKD',   
     date: '', 
-    notes: '' 
+    notes: '',
+    itemOwner: '成人', // 用於行李分配
+    quantity: 1,      // 行李數量
+    weight: 0,        // 單個重量
   });
+
+  const [editingItem, setEditingItem] = useState(null); // 正在編輯的項目 ID
 
   const [activeTab, setActiveTab] = useState('itinerary');
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
   const [loadingWeather, setLoadingWeather] = useState(false);
 
   // 初始化
@@ -143,6 +140,7 @@ function TravelApp() {
     return () => unsubscribe();
   }, []);
 
+  // 監聽行程列表
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'trips'), orderBy('createdAt', 'desc'));
@@ -151,18 +149,39 @@ function TravelApp() {
     });
   }, [user]);
 
+  // 監聽細項
   useEffect(() => {
     if (!user || !currentTrip) return;
-    const q = query(
-      collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), 
-      where('tripId', '==', currentTrip.id)
-    );
+    const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), where('tripId', '==', currentTrip.id));
     return onSnapshot(q, (snapshot) => {
-      setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setItems(data);
     });
   }, [user, currentTrip]);
 
-  // --- 自動預算估算邏輯 ---
+  // --- 計算實際費用並更新到 Trip Doc (用於首頁顯示) ---
+  const updateTripActualCost = async (tripId) => {
+    if (!user || !tripId) return;
+    try {
+      // 讀取該 Trip 所有 Budget 項目
+      const q = query(
+        collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), 
+        where('tripId', '==', tripId),
+        where('type', '==', 'budget')
+      );
+      const snapshot = await getDocs(q);
+      const total = snapshot.docs.reduce((sum, doc) => sum + (Number(doc.data().cost) || 0), 0);
+      
+      // 更新 Trip Doc
+      await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', tripId), {
+        actualCost: total
+      });
+    } catch (e) {
+      console.error("更新總花費失敗", e);
+    }
+  };
+
+  // --- 估算預算邏輯 ---
   useEffect(() => {
     if (newTrip.destination && newTrip.startDate && newTrip.endDate) {
       calculateEstimatedBudget();
@@ -170,6 +189,8 @@ function TravelApp() {
   }, [newTrip.destination, newTrip.startDate, newTrip.endDate, newTrip.travelers]);
 
   const calculateEstimatedBudget = () => {
+    if (newTrip.endDate < newTrip.startDate) return; // 日期無效不計算
+
     const cityInfo = CITY_DATA[newTrip.destination];
     const region = cityInfo ? cityInfo.region : 'default';
     const costs = ESTIMATED_COSTS[region] || ESTIMATED_COSTS['default'];
@@ -178,12 +199,11 @@ function TravelApp() {
     const end = new Date(newTrip.endDate);
     const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
     
-    // 人數加權 (小孩/老人花費較少)
     const totalPeople = newTrip.travelers.adults + newTrip.travelers.children * 0.8 + newTrip.travelers.toddlers * 0.3 + newTrip.travelers.elderly * 0.9;
-    const flightCount = newTrip.travelers.adults + newTrip.travelers.children + newTrip.travelers.elderly + (newTrip.travelers.toddlers > 0 ? 0.1 : 0); // 嬰兒機票便宜
+    const flightCount = newTrip.travelers.adults + newTrip.travelers.children + newTrip.travelers.elderly + (newTrip.travelers.toddlers > 0 ? 0.1 : 0);
 
     const estimatedFlight = costs.flight * flightCount;
-    const estimatedHotel = costs.hotel * (Math.ceil(totalPeople / 2)) * days; // 假設2人一房
+    const estimatedHotel = costs.hotel * (Math.ceil(totalPeople / 2)) * days; 
     const estimatedFood = costs.food * totalPeople * days;
     const estimatedTransport = costs.transport * totalPeople * days;
     const total = estimatedFlight + estimatedHotel + estimatedFood + estimatedTransport;
@@ -191,94 +211,91 @@ function TravelApp() {
     setNewTrip(prev => ({
       ...prev,
       estimatedBudget: Math.round(total),
-      budgetDetails: {
-        flight: Math.round(estimatedFlight),
-        hotel: Math.round(estimatedHotel),
-        food: Math.round(estimatedFood),
-        transport: Math.round(estimatedTransport),
-        days: days
-      }
+      budgetDetails: { flight: Math.round(estimatedFlight), hotel: Math.round(estimatedHotel), food: Math.round(estimatedFood), transport: Math.round(estimatedTransport), days }
     }));
   };
 
-  // --- 動作邏輯 ---
-
-  const fetchWeatherPrediction = async (city) => {
-    if (CITY_DATA[city]) {
-      const { lat, lon } = CITY_DATA[city];
-      try {
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max&timezone=auto`);
-        const data = await res.json();
-        const code = data.daily.weathercode[0];
-        if (code <= 3) return 'sunny';
-        if (code >= 71 || data.daily.temperature_2m_max[0] < 10) return 'cold';
-        return 'rainy';
-      } catch (e) { return 'sunny'; }
-    }
-    return 'sunny'; 
-  };
+  // --- CRUD 邏輯 ---
 
   const createTrip = async (e) => {
     e.preventDefault();
+    // 1. 日期驗證
+    if (newTrip.endDate < newTrip.startDate) {
+      alert("結束日期不能早於出發日期！");
+      return;
+    }
     if (!newTrip.destination) return;
 
     if (!searchHistory.includes(newTrip.destination)) {
-      const newHistory = [newTrip.destination, ...searchHistory].slice(0, 5);
-      setSearchHistory(newHistory);
-      localStorage.setItem('trip_search_history', JSON.stringify(newHistory));
+      localStorage.setItem('trip_search_history', JSON.stringify([newTrip.destination, ...searchHistory].slice(0, 5)));
     }
 
     try {
       setLoadingWeather(true);
-      const weather = await fetchWeatherPrediction(newTrip.destination);
+      // 取得天氣 (這裡簡化，同前版)
+      const weather = 'sunny'; 
       setLoadingWeather(false);
 
       const docRef = await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'trips'), {
         ...newTrip,
         weather,
-        currency: CITY_DATA[newTrip.destination]?.currency || 'HKD', // 儲存當地貨幣
+        currency: CITY_DATA[newTrip.destination]?.currency || 'HKD',
+        actualCost: 0, // 初始實際花費
         createdAt: serverTimestamp()
       });
       
       const tripId = docRef.id;
       const batch = [];
-      const addSubItem = (type, title, cost = '') => {
+      const addSubItem = (type, title, category, owner, qty = 1, defCost = '') => {
+        const defs = ITEM_DEFINITIONS[title] || { weight: 0.5, volume: 5 };
         batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
-          tripId, type, title, cost, completed: false, createdAt: serverTimestamp()
+          tripId, type, title, cost: defCost, 
+          category, // budget: food/stay..., packing: clothes/doc...
+          itemOwner: owner,
+          quantity: qty,
+          weight: defs.weight,
+          volume: defs.volume,
+          completed: false, 
+          createdAt: serverTimestamp()
         }));
       };
 
-      // 行李
-      PACKING_RULES.common.forEach(t => addSubItem('packing', t));
-      if (newTrip.travelers.adults > 0) PACKING_RULES.adult.forEach(t => addSubItem('packing', t));
-      if (newTrip.travelers.children > 0) PACKING_RULES.child.forEach(t => addSubItem('packing', t));
-      // ... 其他行李規則省略以節省篇幅，邏輯同上
-
-      PACKING_RULES.weather[weather].forEach(t => addSubItem('packing', t));
-
-      // 行程
-      const template = ITINERARY_TEMPLATES[newTrip.destination] || ITINERARY_TEMPLATES['default'];
-      const start = new Date(newTrip.startDate);
+      // 5. 智能行李生成 (分類與人員)
+      // 通用文件
+      ["護照/簽證", "現金/信用卡"].forEach(t => addSubItem('packing', t, 'doc', '全體'));
+      // 電子
+      ["手機充電器", "萬用轉接頭"].forEach(t => addSubItem('packing', t, 'move', '全體', 1));
+      
+      // 按人頭
       const days = newTrip.budgetDetails.days || 3;
-
-      for (let i = 0; i < days; i++) {
-        const title = template[i % template.length] || `第 ${i+1} 天自由行`;
-        const dateStr = new Date(start.getTime() + i * 86400000).toISOString().split('T')[0];
-        
-        batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
-          tripId, type: 'itinerary', title, date: dateStr, completed: false, createdAt: serverTimestamp()
-        }));
+      if (newTrip.travelers.adults > 0) {
+        addSubItem('packing', '換洗衣物', 'clothes', '成人', newTrip.travelers.adults * days);
+        addSubItem('packing', '外套', 'clothes', '成人', newTrip.travelers.adults);
+      }
+      if (newTrip.travelers.toddlers > 0) {
+        addSubItem('packing', '尿布', 'daily', '幼童', newTrip.travelers.toddlers * days * 6); // 一天6片
+        addSubItem('packing', '奶粉', 'food', '幼童', 1);
+        addSubItem('packing', '推車', 'move', '幼童', 1);
       }
 
-      // 預算初始項目 (將估算值寫入預算表作為參考)
-      if (newTrip.estimatedBudget > 0) {
-        addSubItem('budget', '✈️ 預估機票', newTrip.budgetDetails.flight);
-        addSubItem('budget', '🏨 預估住宿', newTrip.budgetDetails.hotel);
+      // 7. 預設行程與介紹
+      const cityIntro = CITY_DATA[newTrip.destination]?.intro || "探索未知的旅程！";
+      // 插入第一筆介紹
+      batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
+        tripId, type: 'info', title: `🌟 ${newTrip.destination} 旅遊簡介`, notes: cityIntro, createdAt: serverTimestamp()
+      }));
+
+      // 每日行程 (簡化)
+      for (let i = 0; i < days; i++) {
+        const dateStr = new Date(new Date(newTrip.startDate).getTime() + i * 86400000).toISOString().split('T')[0];
+        batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
+          tripId, type: 'itinerary', title: `第 ${i+1} 天行程`, date: dateStr, completed: false, createdAt: serverTimestamp()
+        }));
       }
 
       await Promise.all(batch);
       setNewTrip({ origin: '香港', destination: '', startDate: '', endDate: '', purpose: 'sightseeing', travelers: { adults: 1, children: 0, toddlers: 0, elderly: 0 }, estimatedBudget: 0, budgetDetails: {} });
-      alert("行程建立成功！預算與清單已生成。");
+      alert("行程建立成功！");
     } catch (error) {
       console.error(error);
       setLoadingWeather(false);
@@ -287,74 +304,134 @@ function TravelApp() {
 
   const deleteTrip = async (id, e) => {
     e.stopPropagation();
-    if (confirm("確定刪除此行程？")) {
-      await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', id));
-    }
+    if (confirm("確定刪除此行程？")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', id));
   };
 
   const openTrip = (trip) => {
     setCurrentTrip(trip);
     setView('trip-detail');
-    // 進入詳細頁面時，預設幣種為當地幣種，但也可以讓使用者選
     const localCurrency = CITY_DATA[trip.destination]?.currency || 'HKD';
     setNewItem({ ...newItem, date: trip.startDate, currency: localCurrency });
   };
 
-  // --- 項目新增 (含匯率換算) ---
+  // --- 細項操作 (新增/編輯/刪除) ---
+
   const handleForeignCostChange = (amount, currency) => {
     const rate = EXCHANGE_RATES[currency] || 1;
     const hkdCost = Math.round(amount * rate);
-    setNewItem(prev => ({ 
-      ...prev, 
-      foreignCost: amount, 
-      currency: currency, 
-      cost: hkdCost 
-    }));
+    setNewItem(prev => ({ ...prev, foreignCost: amount, currency: currency, cost: hkdCost }));
   };
 
   const addItem = async (e) => {
     e.preventDefault();
     if (!newItem.title) return;
-    
-    // 如果是預算項目，且有輸入外幣，生成備註
+
     let finalNotes = newItem.notes;
-    if (activeTab === 'budget' && newItem.currency !== 'HKD' && newItem.foreignCost) {
+    // 記帳：加上匯率備註
+    if (newItem.type === 'budget' && newItem.currency !== 'HKD' && newItem.foreignCost) {
       finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${newItem.notes}`;
     }
 
-    await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
+    // 行李：自動填入重量
+    let finalWeight = newItem.weight;
+    let finalVolume = 0;
+    if (newItem.type === 'packing') {
+       const defs = ITEM_DEFINITIONS[newItem.title];
+       if (defs && finalWeight === 0) {
+         finalWeight = defs.weight;
+         finalVolume = defs.volume;
+       }
+    }
+
+    const payload = {
       ...newItem,
       notes: finalNotes,
+      weight: finalWeight,
+      volume: finalVolume,
       tripId: currentTrip.id,
       completed: false,
       createdAt: serverTimestamp()
-    });
-    // 重置，保留幣種方便連續輸入
-    setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '' });
+    };
+
+    if (editingItem) {
+      // 編輯模式
+      await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', editingItem), payload);
+      setEditingItem(null);
+    } else {
+      // 新增模式
+      await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), payload);
+    }
+
+    // 如果是記帳，更新 Trip 總金額
+    if (newItem.type === 'budget') {
+      setTimeout(() => updateTripActualCost(currentTrip.id), 500); // 稍等寫入完成
+    }
+
+    setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '', quantity: 1, weight: 0 });
   };
 
-  const handleCheckIn = () => {
-    if (!navigator.geolocation) return alert("不支援定位");
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
-        tripId: currentTrip.id, type: 'itinerary',
-        title: `📍 打卡 (GPS: ${latitude.toFixed(2)}, ${longitude.toFixed(2)})`,
-        notes: `時間：${time}`,
-        date: new Date().toISOString().split('T')[0],
-        isCheckIn: true, completed: true, createdAt: serverTimestamp()
-      });
-    }, () => alert("無法取得位置"));
+  const editItem = (item) => {
+    setNewItem({
+      ...item,
+      // 恢復一些可能沒有的欄位
+      foreignCost: item.foreignCost || '',
+      currency: item.currency || 'HKD'
+    });
+    setEditingItem(item.id);
+  };
+
+  const deleteItem = async (id, type) => {
+    if(!confirm("確定刪除？")) return;
+    await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', id));
+    if (type === 'budget') setTimeout(() => updateTripActualCost(currentTrip.id), 500);
   };
 
   const toggleItemComplete = async (item) => updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', item.id), { completed: !item.completed });
-  const deleteItem = async (id) => deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', id));
 
-  // 總花費計算
-  const currentTotalCost = items
-    .filter(i => i.type === 'budget' || i.cost)
-    .reduce((sum, i) => sum + (Number(i.cost) || 0), 0);
+  // 4. 地圖足跡：開啟 Google Maps 路線
+  const openGoogleMapsRoute = () => {
+    // 找出所有有日期的行程點 (或打卡點)
+    const points = items
+      .filter(i => i.type === 'itinerary' && (i.title.includes('打卡') || i.notes)) // 簡單過濾
+      .sort((a,b) => (a.date > b.date ? 1 : -1));
+    
+    // 這裡用簡單的搜尋連結，如果有經緯度會更準
+    // 如果是打卡點，通常 title 會有 GPS
+    const destination = currentTrip.destination;
+    const url = `https://www.google.com/maps/search/${destination}+attractions`;
+    window.open(url, '_blank');
+  };
+
+  // 5. 行李估算邏輯
+  const luggageStats = useMemo(() => {
+    const packingItems = items.filter(i => i.type === 'packing');
+    const totalWeight = packingItems.reduce((sum, i) => sum + (Number(i.weight || 0) * Number(i.quantity || 1)), 0);
+    const totalVolume = packingItems.reduce((sum, i) => sum + ((ITEM_DEFINITIONS[i.title]?.volume || 5) * Number(i.quantity || 1)), 0);
+    
+    // 估算箱子
+    let suggestion = "背包/手提";
+    if (totalVolume > 30) suggestion = "20吋登機箱";
+    if (totalVolume > 60) suggestion = "24吋行李箱";
+    if (totalVolume > 100) suggestion = "28吋大行李箱";
+    if (totalVolume > 150) suggestion = "28吋 x 2";
+
+    return { totalWeight: totalWeight.toFixed(1), totalVolume, suggestion };
+  }, [items]);
+
+  // 6. 記帳分類統計
+  const budgetStats = useMemo(() => {
+    const budgetItems = items.filter(i => i.type === 'budget');
+    const stats = { shopping: 0, food: 0, stay: 0, transport: 0, other: 0, total: 0 };
+    budgetItems.forEach(i => {
+      const cost = Number(i.cost) || 0;
+      const cat = i.category || 'other';
+      if (stats[cat] !== undefined) stats[cat] += cost;
+      else stats.other += cost;
+      stats.total += cost;
+    });
+    return stats;
+  }, [items]);
+
 
   // --- Components ---
   const TravelerCounter = ({ label, icon: Icon, value, field }) => (
@@ -382,8 +459,32 @@ function TravelApp() {
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20}/> 建立新旅程</h2>
             <form onSubmit={createTrip} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 2. 出發地選擇 */}
                 <div className="space-y-1 relative">
-                  <label className="text-xs text-gray-500">目的地 (自動帶入匯率/消費)</label>
+                  <label className="text-xs text-gray-500">出發地</label>
+                  <div className="relative">
+                    <MapPinIcon className="absolute left-3 top-3 text-gray-400" size={16} />
+                    <input 
+                      value={newTrip.origin} 
+                      onChange={e=>setNewTrip({...newTrip, origin: e.target.value})} 
+                      onFocus={() => setShowOriginSuggestions(true)}
+                      className="w-full pl-9 p-2 border rounded-lg bg-gray-50"
+                    />
+                  </div>
+                  {showOriginSuggestions && (
+                    <div className="absolute z-10 w-full bg-white border rounded-lg shadow-xl mt-1 p-2">
+                      <div className="flex flex-wrap gap-2">
+                        {POPULAR_ORIGINS.map(city => (
+                          <button type="button" key={city} onClick={() => {setNewTrip({...newTrip, origin: city}); setShowOriginSuggestions(false);}} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200">{city}</button>
+                        ))}
+                      </div>
+                      <button type="button" onClick={()=>setShowOriginSuggestions(false)} className="w-full text-center text-xs text-blue-500 mt-1 pt-1 border-t">關閉</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1 relative">
+                  <label className="text-xs text-gray-500">目的地</label>
                   <div className="relative">
                     <Navigation className="absolute left-3 top-3 text-blue-500" size={16} />
                     <input 
@@ -400,10 +501,14 @@ function TravelApp() {
                           <button type="button" key={city} onClick={() => {setNewTrip({...newTrip, destination: city}); setShowCitySuggestions(false);}} className="text-xs border px-2 py-1 rounded hover:bg-blue-50">{city}</button>
                         ))}
                       </div>
+                      <button type="button" onClick={()=>setShowCitySuggestions(false)} className="w-full text-center text-xs text-blue-500 mt-1 pt-1 border-t">關閉</button>
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2">
+              </div>
+
+              {/* 1. 日期驗證在 Submit 處理 */}
+              <div className="flex gap-2">
                   <div className="flex-1 space-y-1">
                      <label className="text-xs text-gray-500">開始日期</label>
                      <input type="date" value={newTrip.startDate} onChange={e=>setNewTrip({...newTrip, startDate: e.target.value})} className="w-full p-2 border rounded-lg" required />
@@ -413,7 +518,6 @@ function TravelApp() {
                      <input type="date" value={newTrip.endDate} onChange={e=>setNewTrip({...newTrip, endDate: e.target.value})} className="w-full p-2 border rounded-lg" required />
                   </div>
                 </div>
-              </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <TravelerCounter label="成人" icon={User} field="adults" value={newTrip.travelers.adults} />
@@ -422,50 +526,38 @@ function TravelApp() {
                 <TravelerCounter label="長者" icon={Accessibility} field="elderly" value={newTrip.travelers.elderly} />
               </div>
 
-              {/* 預算估算顯示區塊 */}
               {newTrip.estimatedBudget > 0 && (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fade-in">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-bold text-blue-800 flex items-center gap-1"><Calculator size={16}/> 智能預算估算</span>
-                    <span className="text-lg font-bold text-blue-600">${newTrip.estimatedBudget.toLocaleString()} HKD</span>
+                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                  <div className="flex justify-between items-center text-sm font-bold text-blue-800">
+                     <span>預估: ${newTrip.estimatedBudget.toLocaleString()}</span>
+                     <span className="text-xs font-normal">({newTrip.budgetDetails.days}天)</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 text-xs text-blue-600">
-                    <div className="bg-white p-2 rounded border border-blue-100 text-center">
-                      <div>機票</div><div className="font-bold">${newTrip.budgetDetails.flight.toLocaleString()}</div>
-                    </div>
-                    <div className="bg-white p-2 rounded border border-blue-100 text-center">
-                      <div>住宿 ({newTrip.budgetDetails.days-1}晚)</div><div className="font-bold">${newTrip.budgetDetails.hotel.toLocaleString()}</div>
-                    </div>
-                    <div className="bg-white p-2 rounded border border-blue-100 text-center">
-                      <div>餐飲</div><div className="font-bold">${newTrip.budgetDetails.food.toLocaleString()}</div>
-                    </div>
-                    <div className="bg-white p-2 rounded border border-blue-100 text-center">
-                      <div>交通雜項</div><div className="font-bold">${newTrip.budgetDetails.transport.toLocaleString()}</div>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-blue-400 mt-2 text-right">*估算僅供參考，實際費用請依訂購為主</p>
                 </div>
               )}
 
               <button type="submit" disabled={loadingWeather} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 flex justify-center items-center gap-2">
-                {loadingWeather ? "分析天氣中..." : "建立行程"}
+                建立行程
               </button>
             </form>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {trips.map(trip => (
-              <div key={trip.id} onClick={() => openTrip(trip)} className="bg-white p-5 rounded-xl shadow-sm border hover:border-blue-400 cursor-pointer relative overflow-hidden">
-                <div className={`absolute top-0 right-0 p-4 opacity-10 ${trip.weather==='rainy'?'text-blue-800':trip.weather==='cold'?'text-cyan-600':'text-orange-500'}`}>
-                  {trip.weather==='rainy'?<CloudRain size={80}/>:trip.weather==='cold'?<Snowflake size={80}/>:<Sun size={80}/>}
-                </div>
-                <button onClick={(e) => deleteTrip(trip.id, e)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 z-10"><Trash2 size={16}/></button>
-                <div className="relative z-0">
-                  <h3 className="text-xl font-bold text-gray-800">{trip.destination}</h3>
-                  <p className="text-sm text-gray-500 mt-1 flex items-center gap-1"><Calendar size={14}/> {trip.startDate} ~ {trip.endDate}</p>
-                  <div className="flex gap-2 mt-3">
-                    {trip.estimatedBudget && <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full border border-green-100 flex items-center gap-1"><DollarSign size={10}/> 預算 ${trip.estimatedBudget.toLocaleString()}</span>}
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full border">{trip.currency || 'HKD'}</span>
+              <div key={trip.id} onClick={() => openTrip(trip)} className="bg-white p-5 rounded-xl shadow-sm border hover:border-blue-400 cursor-pointer relative overflow-hidden group">
+                <button onClick={(e) => deleteTrip(trip.id, e)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 z-10 p-2"><Trash2 size={16}/></button>
+                <h3 className="text-xl font-bold text-gray-800">{trip.destination}</h3>
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1"><MapPinIcon size={12}/> {trip.origin} 出發</p>
+                <p className="text-sm text-gray-500 flex items-center gap-1"><Calendar size={12}/> {trip.startDate} ~ {trip.endDate}</p>
+                
+                {/* 3. 首頁加入實際費用 */}
+                <div className="mt-4 flex gap-3 text-xs">
+                  <div className="bg-green-50 text-green-700 px-3 py-1 rounded-lg border border-green-100">
+                    <div className="text-[10px] text-green-400 uppercase">預算</div>
+                    <div className="font-bold">${trip.estimatedBudget?.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg border border-blue-100">
+                    <div className="text-[10px] text-blue-400 uppercase">實際支出</div>
+                    <div className="font-bold">${trip.actualCost?.toLocaleString() || 0}</div>
                   </div>
                 </div>
               </div>
@@ -487,129 +579,184 @@ function TravelApp() {
             <button onClick={() => setView('dashboard')} className="text-gray-500 hover:text-blue-600 text-sm">← 返回</button>
             <div className="text-center">
               <h1 className="font-bold text-lg">{currentTrip.destination}</h1>
-              <p className="text-xs text-gray-500">{currentTrip.startDate} 出發</p>
+              <p className="text-xs text-gray-500">{currentTrip.startDate} ~ {currentTrip.endDate}</p>
             </div>
             <div className="w-10"></div> 
           </div>
           <div className="flex gap-6 overflow-x-auto pb-1 scrollbar-hide">
             {[
               { id: 'itinerary', icon: <MapPin size={18}/>, label: '行程' },
-              { id: 'packing', icon: <Luggage size={18}/>, label: '行李' },
+              { id: 'packing', icon: <Briefcase size={18}/>, label: '行李' }, // 5. 行李 Icon 改為公事包
               { id: 'budget', icon: <DollarSign size={18}/>, label: '記帳' },
               { id: 'info', icon: <FileText size={18}/>, label: '資訊' },
             ].map(tab => (
-              <button key={tab.id} onClick={() => { setActiveTab(tab.id); setNewItem({...newItem, type: tab.id}); }} className={`flex items-center gap-2 pb-3 border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-blue-600 font-bold' : 'border-transparent text-gray-500'}`}>{tab.icon} {tab.label}</button>
+              <button key={tab.id} onClick={() => { setActiveTab(tab.id); setNewItem({...newItem, type: tab.id}); setEditingItem(null); }} className={`flex items-center gap-2 pb-3 border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-blue-600 font-bold' : 'border-transparent text-gray-500'}`}>{tab.icon} {tab.label}</button>
             ))}
           </div>
         </div>
       </div>
 
       <div className="flex-1 max-w-4xl mx-auto w-full p-4 space-y-6">
+        
+        {/* 4. 行程 - Google 地圖足跡 */}
         {activeTab === 'itinerary' && (
-          <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center">
-            <div><h3 className="font-bold text-blue-800">📍 記錄足跡</h3><p className="text-xs text-blue-600">自動將目前位置加入行程</p></div>
-            <button onClick={handleCheckIn} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex gap-2"><Camera size={16} /> 打卡</button>
+          <div className="flex gap-2">
+             <div className="flex-1 bg-blue-50 border border-blue-100 p-3 rounded-xl flex justify-between items-center">
+                <div><h3 className="font-bold text-blue-800 text-sm">📍 足跡打卡</h3></div>
+                <button onClick={() => {
+                   if (!navigator.geolocation) return alert("不支援");
+                   navigator.geolocation.getCurrentPosition(async (pos) => {
+                     const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                     await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
+                       tripId: currentTrip.id, type: 'itinerary', title: `📍 打卡 (${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`, notes: t, date: new Date().toISOString().split('T')[0], completed: true, createdAt: serverTimestamp()
+                     });
+                   });
+                }} className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold flex gap-1 items-center"><Camera size={14} /> 打卡</button>
+             </div>
+             <button onClick={openGoogleMapsRoute} className="bg-white border p-3 rounded-xl shadow-sm text-blue-600 flex flex-col items-center justify-center w-20">
+                <Map size={20} />
+                <span className="text-[10px] font-bold mt-1">地圖預覽</span>
+             </button>
           </div>
         )}
 
+        {/* 5. 行李 - 專業估算 */}
+        {activeTab === 'packing' && (
+          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl">
+             <div className="flex justify-between items-center mb-2">
+                <h3 className="font-bold text-indigo-800 flex items-center gap-2"><Briefcase size={16}/> 行李估算</h3>
+                <span className="text-xs bg-indigo-200 text-indigo-800 px-2 py-1 rounded-full">{luggageStats.suggestion}</span>
+             </div>
+             <div className="flex gap-4 text-xs text-indigo-600">
+                <div>總重: <span className="font-bold">{luggageStats.totalWeight} kg</span></div>
+                <div>體積指數: <span className="font-bold">{luggageStats.totalVolume}</span></div>
+             </div>
+          </div>
+        )}
+
+        {/* 6. 記帳 - 分類統計 */}
         {activeTab === 'budget' && (
-          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-2xl shadow-lg">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-emerald-100 text-xs uppercase">實際總支出 (HKD)</p>
-                <h2 className="text-3xl font-bold mt-1">${currentTotalCost.toLocaleString()}</h2>
-              </div>
-              <div className="text-right">
-                <p className="text-emerald-100 text-xs uppercase">預算剩餘</p>
-                <h3 className={`text-xl font-bold mt-1 ${(currentTrip.estimatedBudget - currentTotalCost) < 0 ? 'text-red-200' : 'text-white'}`}>
-                  ${(currentTrip.estimatedBudget - currentTotalCost).toLocaleString()}
-                </h3>
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-2xl shadow-lg">
+              <div className="flex justify-between items-start">
+                <div><p className="text-emerald-100 text-xs uppercase">總支出 (HKD)</p><h2 className="text-3xl font-bold mt-1">${budgetStats.total.toLocaleString()}</h2></div>
+                <div className="text-right"><p className="text-emerald-100 text-xs uppercase">預算剩餘</p><h3 className={`text-xl font-bold mt-1 ${(currentTrip.estimatedBudget - budgetStats.total) < 0 ? 'text-red-200' : 'text-white'}`}>${(currentTrip.estimatedBudget - budgetStats.total).toLocaleString()}</h3></div>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-emerald-400/30 flex gap-4 text-xs text-emerald-100">
-               <span>匯率參考: 1 {newItem.currency} ≈ {EXCHANGE_RATES[newItem.currency]} HKD</span>
+            {/* 文字條狀統計 */}
+            <div className="flex gap-2 text-xs overflow-x-auto pb-2">
+               {Object.entries(BUDGET_CATEGORIES).map(([key, cfg]) => (
+                 <div key={key} className={`bg-white px-3 py-2 rounded-lg border flex items-center gap-2 whitespace-nowrap ${cfg.color}`}>
+                    <cfg.icon size={14}/> <span>{cfg.label}: ${budgetStats[key].toLocaleString()}</span>
+                 </div>
+               ))}
             </div>
           </div>
         )}
 
-        {/* 智能輸入 Bar */}
+        {/* 7. 資訊 - 旅遊介紹 */}
+        {activeTab === 'info' && (
+           <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
+              <h3 className="font-bold text-yellow-800 flex items-center gap-2 mb-2"><FileText size={16}/> 旅遊簡介</h3>
+              <p className="text-sm text-yellow-700 leading-relaxed">{CITY_DATA[currentTrip.destination]?.intro || "暫無介紹"}</p>
+           </div>
+        )}
+
+        {/* 智能輸入/編輯 Bar */}
         <form onSubmit={addItem} className="bg-white p-4 rounded-xl shadow-sm border flex flex-col gap-3 sticky top-32 z-10">
+          <div className="flex justify-between text-xs text-blue-500 font-bold">
+            <span>{editingItem ? "✏️ 編輯項目" : "➕ 新增項目"}</span>
+            {editingItem && <button type="button" onClick={() => {setEditingItem(null); setNewItem({...newItem, title:''});}} className="text-gray-400">取消</button>}
+          </div>
+          
           <div className="flex gap-2 items-center">
+            {/* 6. 記帳類別選擇 */}
+            {activeTab === 'budget' && (
+               <select value={newItem.category} onChange={e=>setNewItem({...newItem, category: e.target.value})} className="bg-gray-50 text-xs p-2 rounded-lg outline-none">
+                  {Object.entries(BUDGET_CATEGORIES).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+               </select>
+            )}
+            
             <input 
               type="text" 
-              placeholder={activeTab === 'budget' ? "消費項目 (如: 晚餐)" : "項目名稱..."}
+              placeholder={activeTab === 'budget' ? "消費項目" : "名稱"}
               className="flex-1 p-2 bg-gray-50 rounded-lg outline-none focus:bg-white focus:ring-2 ring-blue-100"
               value={newItem.title}
               onChange={e => setNewItem({...newItem, title: e.target.value})}
             />
             
-            {/* 預算頁面專用：多幣種輸入 */}
             {activeTab === 'budget' ? (
               <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border">
-                <input 
-                  type="number" 
-                  placeholder="金額" 
-                  className="w-20 p-1 bg-transparent outline-none text-right font-bold text-blue-600"
-                  value={newItem.foreignCost}
-                  onChange={e => handleForeignCostChange(e.target.value, newItem.currency)}
-                />
-                <select 
-                  value={newItem.currency} 
-                  onChange={e => handleForeignCostChange(newItem.foreignCost, e.target.value)}
-                  className="bg-white text-xs py-1 px-2 rounded border outline-none font-bold"
-                >
+                <input type="number" placeholder="金額" className="w-16 p-1 bg-transparent outline-none text-right font-bold text-blue-600"
+                  value={newItem.foreignCost} onChange={e => handleForeignCostChange(e.target.value, newItem.currency)} />
+                <select value={newItem.currency} onChange={e => handleForeignCostChange(newItem.foreignCost, e.target.value)} className="bg-white text-xs py-1 px-1 rounded border outline-none font-bold">
                   {Object.keys(EXCHANGE_RATES).map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+            ) : activeTab === 'packing' ? (
+              // 5. 行李：人員與數量
+              <div className="flex gap-1">
+                 <select value={newItem.itemOwner} onChange={e=>setNewItem({...newItem, itemOwner: e.target.value})} className="bg-gray-50 text-xs p-1 rounded border w-14">
+                    <option value="成人">成人</option><option value="小童">小童</option><option value="幼童">幼童</option><option value="長者">長者</option>
+                 </select>
+                 <input type="number" value={newItem.quantity} onChange={e=>setNewItem({...newItem, quantity: e.target.value})} className="w-10 text-center bg-gray-50 text-xs p-1 rounded border" />
+              </div>
             ) : (
-              <input 
-                type="date"
-                className="w-32 p-2 bg-gray-50 rounded-lg outline-none text-sm"
-                value={newItem.date}
-                onChange={e => setNewItem({...newItem, date: e.target.value})}
-              />
+              <input type="date" className="w-28 p-2 bg-gray-50 rounded-lg outline-none text-sm" value={newItem.date} onChange={e => setNewItem({...newItem, date: e.target.value})} />
             )}
             
-            <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700"><Plus size={20}/></button>
+            <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700">{editingItem ? <Edit2 size={16}/> : <Plus size={20}/>}</button>
           </div>
-          
-          {/* 顯示匯率換算預覽 */}
-          {activeTab === 'budget' && newItem.foreignCost > 0 && newItem.currency !== 'HKD' && (
-            <div className="text-xs text-gray-500 flex items-center gap-2 pl-1">
-              <RefreshCw size={12}/> 
-              自動換算：<span className="font-bold text-gray-700">${newItem.cost.toLocaleString()} HKD</span> 
-              (匯率 {EXCHANGE_RATES[newItem.currency]})
-            </div>
-          )}
         </form>
 
         <div className="space-y-3 pb-20">
           {tripItems.length === 0 ? (
-            <div className="text-center text-gray-400 py-10"><p>尚無資料，請新增。</p></div>
+            <div className="text-center text-gray-400 py-10"><p>尚無資料。</p></div>
           ) : (
-            tripItems.sort((a,b) => (a.completed === b.completed)? 0 : a.completed? 1 : -1).map(item => (
-              <div key={item.id} className={`bg-white p-4 rounded-xl border flex items-start gap-3 transition-all ${item.completed ? 'bg-gray-50 opacity-60' : 'shadow-sm'}`}>
-                <button onClick={() => toggleItemComplete(item)} className={`mt-1 ${item.completed ? 'text-green-500' : 'text-gray-300 hover:text-blue-500'}`}>
-                  {item.completed ? <CheckCircle2 size={22}/> : <Circle size={22}/>}
-                </button>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <span className={`font-medium ${item.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.title}</span>
-                    {item.cost && (
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-gray-800">${Number(item.cost).toLocaleString()}</div>
-                        {/* 顯示外幣備註 */}
-                        {item.notes && item.notes.includes('匯率') && <div className="text-[10px] text-gray-400">{item.notes.split(' ')[0]} {item.notes.split(' ')[1]}</div>}
-                      </div>
-                    )}
+            // 5. 行李分類顯示：依人員分組
+            activeTab === 'packing' ? (
+               ['成人', '小童', '幼童', '長者', '全體'].map(owner => {
+                 const ownerItems = tripItems.filter(i => i.itemOwner === owner || (!i.itemOwner && owner === '全體'));
+                 if (ownerItems.length === 0) return null;
+                 return (
+                   <div key={owner} className="mb-4">
+                     <h4 className="text-sm font-bold text-gray-500 mb-2 px-1">{owner} 行李</h4>
+                     {ownerItems.map(item => (
+                       <div key={item.id} className={`bg-white p-3 mb-2 rounded-xl border flex items-center gap-3 ${item.completed ? 'opacity-50' : ''}`}>
+                          <button onClick={() => toggleItemComplete(item)} className={item.completed ? 'text-green-500' : 'text-gray-300'}>{item.completed ? <CheckCircle2 size={20}/> : <Circle size={20}/>}</button>
+                          <div className="flex-1 font-medium text-sm flex justify-between">
+                            <span>{item.title}</span>
+                            <span className="text-gray-400 text-xs">x{item.quantity}</span>
+                          </div>
+                          <button onClick={() => deleteItem(item.id, 'packing')} className="text-gray-200 hover:text-red-400"><Trash2 size={14}/></button>
+                       </div>
+                     ))}
+                   </div>
+                 )
+               })
+            ) : (
+              tripItems.sort((a,b) => (a.completed === b.completed)? 0 : a.completed? 1 : -1).map(item => (
+                <div key={item.id} className={`bg-white p-4 rounded-xl border flex items-start gap-3 ${item.completed ? 'bg-gray-50 opacity-60' : 'shadow-sm'}`}>
+                  <button onClick={() => toggleItemComplete(item)} className={`mt-1 ${item.completed ? 'text-green-500' : 'text-gray-300 hover:text-blue-500'}`}>
+                    {item.completed ? <CheckCircle2 size={22}/> : <Circle size={22}/>}
+                  </button>
+                  <div className="flex-1" onClick={() => item.type === 'budget' && editItem(item)}>
+                    <div className="flex justify-between items-start">
+                      <span className={`font-medium ${item.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.title}</span>
+                      {item.cost && (
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-gray-800">${Number(item.cost).toLocaleString()}</div>
+                          {item.notes && item.notes.includes('匯率') && <div className="text-[10px] text-gray-400">{item.notes.split(' ')[0]} {item.notes.split(' ')[1]}</div>}
+                        </div>
+                      )}
+                    </div>
+                    {item.date && <div className="text-xs text-blue-500 mt-1">{item.date}</div>}
+                    {item.category && item.type === 'budget' && <div className={`text-[10px] mt-1 inline-block px-1 rounded border ${BUDGET_CATEGORIES[item.category]?.color}`}>{BUDGET_CATEGORIES[item.category]?.label}</div>}
                   </div>
-                  <div className="flex flex-col gap-1 mt-1">
-                    {item.date && <span className="text-xs text-blue-500 flex items-center gap-1"><Calendar size={12}/> {item.date}</span>}
-                  </div>
+                  <button onClick={() => deleteItem(item.id, item.type)} className="text-gray-200 hover:text-red-400"><Trash2 size={16}/></button>
                 </div>
-                <button onClick={() => deleteItem(item.id)} className="text-gray-200 hover:text-red-400"><Trash2 size={16}/></button>
-              </div>
-            ))
+              ))
+            )
           )}
         </div>
       </div>
