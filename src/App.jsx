@@ -31,14 +31,14 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 const APP_ID = "travel-mate-app-7ca34"; 
 
-// --- 3. 資料庫與常數 (大幅擴充) ---
+// --- 3. 資料庫與常數 ---
 
 const CITY_DATA = {
   "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
   "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
   "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi" },
   "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", intro: "北國雪景與美食。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", intro: "九州門戶，拉麵聖地。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", intro: "九州門戶。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
   "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
   "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", intro: "海港城市。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
   "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688" },
@@ -60,7 +60,7 @@ const EXCHANGE_RATES = {
   "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1, "AUD": 5.1 
 };
 
-// 基礎消費 (HKD/人/天) - 僅作參考基數
+// 基礎消費 (HKD/人/天)
 const BASE_COSTS = {
   "JP": { food: 400, transport: 150 },
   "KR": { food: 300, transport: 100 },
@@ -72,7 +72,6 @@ const BASE_COSTS = {
   "default": { food: 400, transport: 150 }
 };
 
-// 機票與住宿係數 (HKD)
 const FLIGHT_COSTS = {
   "JP": { direct: 5000, transfer: 3500 },
   "UK": { direct: 10000, transfer: 7000 },
@@ -84,7 +83,13 @@ const HOTEL_COSTS = {
   "5star": 2500, "4star": 1500, "3star": 1000, "homestay": 800, "hostel": 400
 };
 
-// 行李物品定義
+const PURPOSE_MULTIPLIERS = {
+  "sightseeing": { flight: 1, hotel: 1, food: 1, transport: 1.2 }, 
+  "shopping": { flight: 1, hotel: 1, food: 0.8, transport: 1, shopping: 5000 }, 
+  "food": { flight: 1, hotel: 1, food: 2.0, transport: 1 }, 
+  "adventure": { flight: 1, hotel: 1.2, food: 1, transport: 1.5 } 
+};
+
 const ITEM_DEFINITIONS = {
   "護照/簽證": { weight: 0.1, volume: 1, category: "doc", icon: FileText },
   "現金/信用卡": { weight: 0.1, volume: 1, category: "doc", icon: DollarSign },
@@ -129,30 +134,58 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
+// 農曆與節日簡易查詢 (2024-2025 部分資料模擬)
+const getLunarInfo = (date) => {
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  
+  // 公曆節日
+  if (m === 1 && d === 1) return "元旦";
+  if (m === 2 && d === 14) return "情人節";
+  if (m === 4 && d === 4) return "兒童節"; // 港台
+  if (m === 5 && d === 1) return "勞動節";
+  if (m === 10 && d === 1) return "國慶";
+  if (m === 12 && d === 25) return "聖誕";
+  if (m === 12 && d === 31) return "除夕";
+
+  // 簡易農曆模擬 (每 29.5 天) - 僅作「初一/十五」示意，非精確天文算法
+  // 基準: 2024-02-10 是春節 (初一)
+  const baseDate = new Date(2024, 1, 10);
+  const diffDays = Math.floor((date - baseDate) / 86400000);
+  const lunarDayIndex = (diffDays % 29 + 29) % 29 + 1; // 1-29
+
+  if (lunarDayIndex === 1) return "初一";
+  if (lunarDayIndex === 15) return "十五";
+  
+  // 特定農曆節日 (模擬日期)
+  if (y === 2024 && m === 2 && d === 10) return "春節";
+  if (y === 2024 && m === 9 && d === 17) return "中秋";
+  if (y === 2025 && m === 1 && d === 29) return "春節";
+
+  return null;
+};
+
 // 升級版日曆：顯示節假日
 const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
+  // 使用本地時間防止時區問題
   const [currentMonth, setCurrentMonth] = useState(startDate ? new Date(startDate) : new Date());
   
   const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
-  // 模擬節假日 (簡單邏輯：週末與固定日期)
-  const getHoliday = (day) => {
-    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const dayOfWeek = d.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) return "休"; // 週末
-    // 模擬農曆/節日 (真實專案需引入農曆庫)
-    if (day === 1 || day === 15) return "農"; 
-    return null;
+  const formatDate = (y, m, d) => {
+    // 強制格式化為 YYYY-MM-DD 本地時間
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   };
 
   const handleDateClick = (day) => {
-    const clickedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const dateStr = clickedDate.toISOString().split('T')[0];
+    const dateStr = formatDate(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+
     if (!startDate || (startDate && endDate)) {
       onChange({ startDate: dateStr, endDate: '' });
     } else {
-      if (new Date(dateStr) < new Date(startDate)) {
+      if (dateStr < startDate) {
         onChange({ startDate: dateStr, endDate: startDate });
         if (onClose) setTimeout(onClose, 300);
       } else {
@@ -163,24 +196,29 @@ const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
   };
 
   const isSelected = (day) => {
-    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day).toISOString().split('T')[0];
+    const d = formatDate(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     return d === startDate || d === endDate;
   };
 
   const isInRange = (day) => {
     if (!startDate || !endDate) return false;
-    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    return d > new Date(startDate) && d < new Date(endDate);
+    const dStr = formatDate(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    return dStr > startDate && dStr < endDate;
+  };
+
+  const isToday = (day) => {
+    const today = new Date();
+    return day === today.getDate() && currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear();
   };
 
   return (
-    <div className="bg-white rounded-xl border p-4 shadow-xl w-72">
+    <div className="bg-white rounded-xl border p-4 shadow-xl w-80 z-50">
       <div className="flex justify-between items-center mb-4">
         <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft size={20}/></button>
         <span className="font-bold text-sm">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
         <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronRight size={20}/></button>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2 text-gray-400">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2 text-gray-400 font-bold">
         {['日','一','二','三','四','五','六'].map(d => <div key={d} className={d==='日'||d==='六'?'text-red-400':''}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -189,21 +227,26 @@ const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
           const day = i + 1;
           const selected = isSelected(day);
           const inRange = isInRange(day);
-          const holiday = getHoliday(day);
+          const today = isToday(day);
+          const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+          const holiday = getLunarInfo(dateObj);
+          const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+
           return (
             <button
               key={day}
               type="button"
               onClick={() => handleDateClick(day)}
-              className={`h-9 w-9 rounded-full text-xs flex flex-col items-center justify-center transition-all relative
-                ${selected ? 'bg-blue-600 text-white font-bold shadow-md' : ''}
-                ${inRange ? 'bg-blue-100 text-blue-800' : ''}
-                ${!selected && !inRange ? 'hover:bg-gray-100 text-gray-700' : ''}
-                ${holiday === '休' && !selected && !inRange ? 'text-red-500 bg-red-50' : ''}
+              className={`h-10 w-full rounded-lg text-xs flex flex-col items-center justify-center transition-all relative border border-transparent
+                ${selected ? 'bg-blue-600 text-white font-bold shadow-md z-10' : ''}
+                ${inRange ? 'bg-blue-100 text-blue-800 rounded-none' : ''}
+                ${!selected && !inRange ? 'hover:bg-gray-100' : ''}
+                ${today && !selected ? 'border-yellow-400 bg-yellow-50' : ''}
+                ${(isWeekend || holiday) && !selected && !inRange ? 'text-red-500' : ''}
               `}
             >
               <span>{day}</span>
-              {holiday && !selected && <span className="text-[8px] scale-75 opacity-70">{holiday}</span>}
+              {holiday && <span className={`text-[9px] scale-90 ${selected ? 'text-blue-200' : 'text-red-400'}`}>{holiday}</span>}
             </button>
           );
         })}
@@ -215,7 +258,6 @@ const RangeCalendar = ({ startDate, endDate, onChange, onClose }) => {
 
 // --- Helper Functions (Expanded POI & Costs) ---
 
-// 擴充景點資料庫 (含預估費用)
 const POI_DB = {
   "東京": [
     { name: "東京迪士尼樂園", cost: 600, cat: "sightseeing", time: "全日", note: "夢幻王國" },
@@ -232,7 +274,13 @@ const POI_DB = {
     { name: "道頓堀美食", cost: 200, cat: "food", time: "3h", note: "章魚燒吃到飽" },
     { name: "梅田藍天大廈", cost: 100, cat: "sightseeing", time: "1h", note: "絕美夜景" }
   ],
-  // ... 其他城市可以用相同格式擴充，這裡用通用邏輯處理 fallback
+  "雪梨": [
+    { name: "雪梨歌劇院", cost: 200, cat: "sightseeing", time: "2h", note: "內部導覽" },
+    { name: "攀登港灣大橋", cost: 1500, cat: "adventure", time: "3h", note: "極限體驗" },
+    { name: "塔龍加動物園", cost: 300, cat: "sightseeing", time: "4h", note: "看無尾熊與長頸鹿" },
+    { name: "邦迪海灘", cost: 0, cat: "sightseeing", time: "3h", note: "衝浪與日光浴" },
+    { name: "魚市場午餐", cost: 250, cat: "food", time: "2h", note: "新鮮生蠔龍蝦" }
+  ]
 };
 
 const generateSmartItinerary = (city, days, purpose, travelers) => {
@@ -246,48 +294,22 @@ const generateSmartItinerary = (city, days, purpose, travelers) => {
   ];
 
   let itinerary = [];
-  itinerary.push({ title: "抵達 & 辦理入住", notes: "前往飯店放行李，熟悉環境", cost: 0, category: "other", startTime: "14:00", duration: "2h" });
+  itinerary.push({ title: "抵達 & 辦理入住", notes: "前往飯店放行李，熟悉環境，購買交通卡/網卡", cost: 0, category: "other", startTime: "14:00", duration: "2h" });
 
   for (let i = 1; i < days - 1; i++) {
-    // 簡單輪詢邏輯
     const spot1 = citySpots[i % citySpots.length];
     const spot2 = citySpots[(i + 1) % citySpots.length];
-    
-    let cost1 = spot1.cost;
     let note1 = spot1.note;
-    
-    // AI 調整：如果有小孩，優先去樂園或公園
-    if (hasKids && (spot1.name.includes("樂園") || spot1.name.includes("動物園"))) {
-       note1 += " (親子推薦)";
-    }
+    if (hasKids && (spot1.name.includes("樂園") || spot1.name.includes("動物園"))) note1 += " (親子推薦)";
 
-    itinerary.push({ 
-      title: spot1.name, 
-      notes: note1, 
-      cost: cost1, // 預估費用
-      category: spot1.cat,
-      startTime: "10:00", 
-      duration: spot1.time 
-    });
-
-    if (purpose === 'food') {
-       itinerary.push({ title: "當地人氣餐廳午餐", notes: "需提前訂位", cost: 200, category: "food", startTime: "13:00", duration: "1.5h" });
-    }
-
-    itinerary.push({ 
-      title: spot2.name, 
-      notes: spot2.note, 
-      cost: spot2.cost, 
-      category: spot2.cat,
-      startTime: "15:00", 
-      duration: spot2.time 
-    });
+    itinerary.push({ title: spot1.name, notes: note1, cost: spot1.cost, category: spot1.cat, startTime: "10:00", duration: spot1.time });
+    if (purpose === 'food') itinerary.push({ title: "當地人氣餐廳午餐", notes: "需提前訂位", cost: 200, category: "food", startTime: "13:00", duration: "1.5h" });
+    itinerary.push({ title: spot2.name, notes: spot2.note, cost: spot2.cost, category: spot2.cat, startTime: "15:00", duration: spot2.time });
   }
   itinerary.push({ title: "前往機場 & 免稅店", notes: "最後採買，準備返程", cost: 0, category: "other", startTime: "09:00", duration: "3h" });
   return itinerary;
 };
 
-// 取得天氣
 const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
@@ -320,22 +342,17 @@ function TravelApp() {
   const [isUpdating, setIsUpdating] = useState(true); 
   const [toast, setToast] = useState(null); 
 
-  // UI 狀態
   const [showCalendar, setShowCalendar] = useState(false); 
 
-  // 表單狀態
   const [newTrip, setNewTrip] = useState({
     origin: '香港', destination: '', startDate: '', endDate: '',
     purpose: 'sightseeing', travelers: { adults: 1, children: 0, toddlers: 0, elderly: 0 },
-    flightType: 'direct', // direct, transfer
-    hotelType: '4star',   // 5star, 4star, 3star, homestay, hostel
-    estimatedBudget: 0, budgetDetails: {}
+    flightType: 'direct', hotelType: '4star', estimatedBudget: 0, budgetDetails: {}
   });
 
   const [newItem, setNewItem] = useState({ 
     type: 'itinerary', category: 'other', title: '', cost: '', foreignCost: '', currency: 'HKD', date: '', notes: '',
     itemOwner: '成人', quantity: 1, weight: 0, startTime: '', duration: '',
-    // 人員資料欄位
     pName: '', pId: '', pPhone: '', pRoom: ''
   });
 
@@ -364,16 +381,14 @@ function TravelApp() {
     } catch (e) { console.error(e); }
   };
 
-  // --- 超級 AI 預算估算邏輯 ---
   const calculateEstimatedBudget = () => {
     if (!newTrip.startDate || !newTrip.endDate) return;
-    if (new Date(newTrip.endDate) < new Date(newTrip.startDate)) return;
+    // 使用字串比較防止 crash
+    if (newTrip.endDate < newTrip.startDate) return;
 
     const cityInfo = CITY_DATA[newTrip.destination];
     const region = cityInfo ? cityInfo.region : 'default';
     const baseCosts = BASE_COSTS[region] || BASE_COSTS['default'];
-    
-    // 取得各類係數
     const purposeMult = PURPOSE_MULTIPLIERS[newTrip.purpose] || PURPOSE_MULTIPLIERS['sightseeing'];
     const flightBase = (FLIGHT_COSTS[region] || FLIGHT_COSTS['default'])[newTrip.flightType];
     const hotelBase = HOTEL_COSTS[newTrip.hotelType];
@@ -382,7 +397,8 @@ function TravelApp() {
     const end = new Date(newTrip.endDate);
     const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
     
-    // 人數加權 (嬰兒極低費)
+    if (isNaN(days)) return; // 安全檢查
+
     const flightCount = newTrip.travelers.adults + newTrip.travelers.children + newTrip.travelers.elderly + (newTrip.travelers.toddlers * 0.1);
     const totalPeople = newTrip.travelers.adults + newTrip.travelers.children * 0.8 + newTrip.travelers.toddlers * 0.2 + newTrip.travelers.elderly * 0.9;
     const roomCount = Math.ceil((newTrip.travelers.adults + newTrip.travelers.children + newTrip.travelers.elderly) / 2);
@@ -391,7 +407,6 @@ function TravelApp() {
     const estimatedHotel = hotelBase * roomCount * days; 
     const estimatedFood = baseCosts.food * totalPeople * days * purposeMult.food;
     const estimatedTransport = baseCosts.transport * totalPeople * days * purposeMult.transport;
-    
     const extraShopping = (newTrip.purpose === 'shopping' ? (purposeMult.shopping || 0) * newTrip.travelers.adults : 0);
 
     const total = estimatedFlight + estimatedHotel + estimatedFood + estimatedTransport + extraShopping;
@@ -406,8 +421,6 @@ function TravelApp() {
     if (newTrip.destination && newTrip.startDate && newTrip.endDate) calculateEstimatedBudget();
   }, [newTrip.destination, newTrip.startDate, newTrip.endDate, newTrip.travelers, newTrip.purpose, newTrip.flightType, newTrip.hotelType]);
 
-  // --- CRUD & Actions ---
-
   const handleGoogleLink = async () => { try { if (user.isAnonymous) await linkWithPopup(user, googleProvider); else showToast("已登入", "success"); } catch (error) { if (error.code === 'auth/credential-already-in-use') { if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider); } } };
   const handleExportData = () => { const data = { user: user.uid, trips: trips, items: items, exportedAt: new Date().toISOString() }; const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `travel_backup.json`; a.click(); };
   const toggleTripLock = async () => { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', currentTrip.id), { isLocked: !currentTrip.isLocked }); setCurrentTrip(prev => ({...prev, isLocked: !prev.isLocked})); showToast(currentTrip.isLocked ? "行程已解鎖" : "行程已鎖定", "success"); };
@@ -415,7 +428,7 @@ function TravelApp() {
 
   const createTrip = async (e) => {
     e.preventDefault();
-    if (!newTrip.startDate || !newTrip.endDate) return showToast("請選擇日期", "error");
+    if (!newTrip.startDate || !newTrip.endDate) return showToast("請選擇完整的日期範圍", "error");
     if (!newTrip.destination) return showToast("請輸入目的地", "error");
     try {
       setLoadingWeather(true);
@@ -428,15 +441,13 @@ function TravelApp() {
         batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId, type, title, cost: defCost, category, itemOwner: owner, quantity: qty, weight: defs.weight, volume: defs.volume, completed: false, createdAt: serverTimestamp() }));
       };
 
-      // 4. 動態行李邏輯
       const days = newTrip.budgetDetails.days || 3;
-      // 根據天氣 (假設冬天去日本需要厚外套)
       const isCold = newTrip.destination === '札幌' || newTrip.destination === '首爾'; 
       ["護照/簽證", "現金/信用卡"].forEach(t => addSubItem('packing', t, 'doc', '全體'));
       ["手機充電器", "萬用轉接頭"].forEach(t => addSubItem('packing', t, 'move', '全體', 1));
       
       if (newTrip.travelers.adults > 0) {
-        addSubItem('packing', '換洗衣物', 'clothes', '成人', newTrip.travelers.adults * Math.min(days, 5)); // 最多帶5套
+        addSubItem('packing', '換洗衣物', 'clothes', '成人', newTrip.travelers.adults * Math.min(days, 5));
         addSubItem('packing', isCold ? '厚外套' : '薄外套', 'clothes', '成人', newTrip.travelers.adults);
       }
       if (newTrip.travelers.toddlers > 0) {
@@ -445,7 +456,6 @@ function TravelApp() {
         addSubItem('packing', '推車', 'move', '幼童', 1);
       }
 
-      // 生成智能行程 (帶費用)
       const smartItinerary = generateSmartItinerary(newTrip.destination, days, newTrip.purpose, newTrip.travelers);
       smartItinerary.forEach((plan, idx) => {
         const dateStr = new Date(new Date(newTrip.startDate).getTime() + idx * 86400000).toISOString().split('T')[0];
@@ -457,7 +467,6 @@ function TravelApp() {
         }));
       });
 
-      // 預設預算項目 (自動分類)
       batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId, type: 'budget', title: `✈️ 機票 (${newTrip.flightType==='direct'?'直航':'轉機'})`, cost: newTrip.budgetDetails.flight, category: 'transport', createdAt: serverTimestamp() }));
       batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId, type: 'budget', title: `🏨 住宿 (${newTrip.hotelType})`, cost: newTrip.budgetDetails.hotel, category: 'stay', createdAt: serverTimestamp() }));
       batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId, type: 'budget', title: '🍽️ 預估餐飲費', cost: newTrip.budgetDetails.food, category: 'food', createdAt: serverTimestamp() }));
@@ -473,25 +482,16 @@ function TravelApp() {
     } catch (error) { console.error(error); setLoadingWeather(false); showToast("建立失敗", "error"); }
   };
 
-  // ... CRUD actions same as before (delete, open, etc) ...
   const deleteTrip = async (id, e) => { e.stopPropagation(); if (confirm("確定刪除？")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', id)); };
   const openTrip = (trip) => { setCurrentTrip(trip); setView('trip-detail'); setNewItem({ ...newItem, date: trip.startDate, currency: CITY_DATA[trip.destination]?.currency || 'HKD' }); };
   const handleForeignCostChange = (amount, currency) => { const rate = EXCHANGE_RATES[currency] || 1; setNewItem(prev => ({ ...prev, foreignCost: amount, currency: currency, cost: Math.round(amount * rate) })); };
+  
   const addItem = async (e) => {
     e.preventDefault(); if ((!newItem.title && !newItem.pName) && !checkInModal) return; if (currentTrip.isLocked) return showToast("已鎖定", "error");
-    
-    // 人員資料
     if (activeTab === 'people') {
-        await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
-            tripId: currentTrip.id, type: 'people',
-            title: newItem.pName, notes: `房號: ${newItem.pRoom}`,
-            pId: newItem.pId, pPhone: newItem.pPhone,
-            completed: false, createdAt: serverTimestamp()
-        });
-        setNewItem({...newItem, pName:'', pId:'', pPhone:'', pRoom:''});
-        return showToast("人員已新增", "success");
+        await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId: currentTrip.id, type: 'people', title: newItem.pName, notes: `房號: ${newItem.pRoom}`, pId: newItem.pId, pPhone: newItem.pPhone, completed: false, createdAt: serverTimestamp() });
+        setNewItem({...newItem, pName:'', pId:'', pPhone:'', pRoom:''}); return showToast("人員已新增", "success");
     }
-
     let finalNotes = newItem.notes; if (newItem.foreignCost && newItem.currency !== 'HKD') finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${finalNotes}`;
     let finalWeight = newItem.weight, finalVolume = 0; if (newItem.type === 'packing') { const defs = ITEM_DEFINITIONS[newItem.title]; if (defs && finalWeight === 0) { finalWeight = defs.weight; finalVolume = defs.volume; } }
     const payload = { ...newItem, notes: finalNotes, weight: finalWeight, volume: finalVolume, tripId: currentTrip.id, completed: false, createdAt: serverTimestamp() };
@@ -520,7 +520,6 @@ function TravelApp() {
   }, [items]);
 
   const budgetStats = useMemo(() => {
-    // 包含 budget 類型 以及 itinerary 中有 cost 的項目
     const budgetItems = items.filter(i => i.cost && (i.type === 'budget' || i.type === 'itinerary'));
     const stats = { shopping: 0, food: 0, stay: 0, transport: 0, other: 0, total: 0 };
     budgetItems.forEach(i => { const cost = Number(i.cost) || 0; const cat = i.category || 'other'; if (stats[cat] !== undefined) stats[cat] += cost; else stats.other += cost; stats.total += cost; });
@@ -534,7 +533,53 @@ function TravelApp() {
     </div>
   );
 
-  const ReportTemplate = () => { /* ... Keep Report Template logic same as before but include People list if needed ... */ return null; }; // 簡化展示，實際可保留
+  const ReportTemplate = () => {
+    const dayDiff = Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1);
+    const dateArray = Array.from({length: dayDiff}).map((_, i) => new Date(new Date(currentTrip.startDate).getTime() + i * 86400000).toISOString().split('T')[0]);
+    return (
+      <div className="bg-white text-gray-800 font-sans p-8 max-w-[210mm] mx-auto min-h-[297mm] relative">
+         <div className="border-b-4 border-double border-gray-800 pb-6 mb-8 text-center font-serif">
+             <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mb-2 uppercase tracking-widest"><Plane size={14} /> Travel Itinerary</div>
+             <h1 className="text-4xl font-bold text-gray-900 mb-3">{user?.displayName || '親愛的旅客'} 的 {currentTrip.destination} 之旅</h1>
+             <p className="text-lg text-gray-600 italic">{currentTrip.startDate} — {currentTrip.endDate} • {dayDiff} 天</p>
+         </div>
+         <div className="flex flex-row gap-8 items-start">
+            <div className="w-[65%]">
+               <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2"><MapPin size={20} className="text-blue-600"/> 每日行程</h2>
+               <div className="space-y-6">
+                  {dateArray.map((dateStr, idx) => {
+                     const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
+                     return (
+                        <div key={dateStr} className="relative pl-4 border-l-2 border-gray-200 break-inside-avoid">
+                           <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+                           <div className="flex justify-between items-center mb-2"><h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Day {idx+1} • {dateStr}</h3></div>
+                           {dayItems.map(item => (<div key={item.id} className="text-sm"><span className="font-bold text-gray-800 mr-2">{item.startTime || '待定'}</span><span className="text-gray-700">{item.title}</span></div>))}
+                        </div>
+                     )
+                  })}
+               </div>
+            </div>
+            <div className="w-[35%] space-y-8">
+               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 break-inside-avoid"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-sm uppercase"><Calculator size={14}/> 財務概況</h3><div className="space-y-2 text-sm"><div className="flex justify-between"><span>總預算</span><span className="font-bold">${currentTrip.estimatedBudget?.toLocaleString()}</span></div><div className="flex justify-between text-blue-600"><span>預計支出</span><span className="font-bold">${budgetStats.total.toLocaleString()}</span></div></div></div>
+            </div>
+         </div>
+      </div>
+    );
+  };
+
+  // --- Render ---
+
+  if (showPreviewModal) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center">
+         <div className="w-full bg-white shadow-md p-4 sticky top-0 z-50 flex justify-between items-center print:hidden">
+            <h2 className="font-bold text-gray-700 flex items-center gap-2"><Eye size={20}/> 閱讀模式</h2>
+            <div className="flex gap-2"><button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm active:scale-95"><Printer size={16}/> 列印</button><button onClick={()=>setShowPreviewModal(false)} className="text-gray-500 hover:bg-gray-100 p-2 rounded-lg"><X size={20}/></button></div>
+         </div>
+         <div className="w-full max-w-[210mm] bg-white shadow-xl my-8 print:shadow-none print:m-0 print:w-full"><ReportTemplate /></div>
+      </div>
+    );
+  }
 
   if (view === 'dashboard') {
     return (
@@ -550,6 +595,25 @@ function TravelApp() {
                <button onClick={() => setShowUserModal(true)} className="flex items-center gap-2 bg-white px-3 py-2 rounded-full shadow-sm border text-sm text-gray-600 hover:bg-gray-50"><User size={18} /> {user?.isAnonymous ? '訪客' : '已綁定'}</button>
             </div>
           </header>
+
+          {showUserModal && (
+             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
+                   <button onClick={()=>setShowUserModal(false)} className="absolute top-4 right-4 text-gray-400">X</button>
+                   <h3 className="text-lg font-bold mb-4 flex items-center gap-2">👤 用戶中心</h3>
+                   <div className="bg-gray-50 p-3 rounded-lg mb-4 text-xs text-gray-500 break-all">ID: {user?.uid}</div>
+                   <div className="space-y-3">
+                      {user?.isAnonymous ? (
+                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mb-4">
+                           <p className="text-xs text-orange-600 font-bold mb-1">⚠️ 注意：您目前是訪客模式</p>
+                           <button onClick={handleGoogleLink} className="w-full mt-2 bg-white border border-orange-200 text-orange-600 py-2 rounded-lg flex items-center justify-center gap-2 font-bold hover:bg-orange-100"><LogIn size={16}/> 綁定 Google 帳號</button>
+                        </div>
+                      ) : <div className="bg-green-50 p-3 rounded-lg border border-green-100 mb-4 flex items-center gap-2 text-green-700"><CheckCircle2 size={16}/> 資料已安全綁定</div>}
+                      <button onClick={handleExportData} className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-200"><Download size={16}/> 下載資料備份 (JSON)</button>
+                   </div>
+                </div>
+             </div>
+          )}
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus size={20}/> 建立新旅程</h2>
@@ -567,26 +631,10 @@ function TravelApp() {
                  {showCalendar && <div className="absolute top-16 left-0 z-20"><RangeCalendar startDate={newTrip.startDate} endDate={newTrip.endDate} onChange={({startDate, endDate}) => setNewTrip({...newTrip, startDate, endDate})} onClose={() => setShowCalendar(false)} /></div>}
               </div>
 
-              {/* 5. 行程偏好選擇 */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-blue-50 p-3 rounded-xl border border-blue-100">
-                 <div>
-                    <label className="text-xs text-blue-600 font-bold mb-1 block">機票類型</label>
-                    <select value={newTrip.flightType} onChange={e=>setNewTrip({...newTrip, flightType: e.target.value})} className="w-full text-xs p-1 rounded border">
-                       <option value="direct">直航 (較貴)</option><option value="transfer">轉機 (較便宜)</option>
-                    </select>
-                 </div>
-                 <div>
-                    <label className="text-xs text-blue-600 font-bold mb-1 block">住宿等級</label>
-                    <select value={newTrip.hotelType} onChange={e=>setNewTrip({...newTrip, hotelType: e.target.value})} className="w-full text-xs p-1 rounded border">
-                       <option value="5star">五星級飯店</option><option value="4star">四星級/精品</option><option value="3star">三星級/商務</option><option value="homestay">民宿/Airbnb</option><option value="hostel">青年旅館</option>
-                    </select>
-                 </div>
-                 <div>
-                    <label className="text-xs text-blue-600 font-bold mb-1 block">旅遊目的</label>
-                    <select value={newTrip.purpose} onChange={e=>setNewTrip({...newTrip, purpose: e.target.value})} className="w-full text-xs p-1 rounded border">
-                       <option value="sightseeing">觀光</option><option value="shopping">購物</option><option value="food">美食</option><option value="adventure">冒險</option>
-                    </select>
-                 </div>
+                 <div><label className="text-xs text-blue-600 font-bold mb-1 block">機票類型</label><select value={newTrip.flightType} onChange={e=>setNewTrip({...newTrip, flightType: e.target.value})} className="w-full text-xs p-1 rounded border"><option value="direct">直航</option><option value="transfer">轉機</option></select></div>
+                 <div><label className="text-xs text-blue-600 font-bold mb-1 block">住宿等級</label><select value={newTrip.hotelType} onChange={e=>setNewTrip({...newTrip, hotelType: e.target.value})} className="w-full text-xs p-1 rounded border"><option value="5star">五星級</option><option value="4star">四星級</option><option value="3star">三星級</option><option value="homestay">民宿</option><option value="hostel">青旅</option></select></div>
+                 <div><label className="text-xs text-blue-600 font-bold mb-1 block">旅遊目的</label><select value={newTrip.purpose} onChange={e=>setNewTrip({...newTrip, purpose: e.target.value})} className="w-full text-xs p-1 rounded border"><option value="sightseeing">觀光</option><option value="shopping">購物</option><option value="food">美食</option><option value="adventure">冒險</option></select></div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3"><TravelerCounter label="成人" icon={User} field="adults" value={newTrip.travelers.adults} /><TravelerCounter label="小童" icon={User} field="children" value={newTrip.travelers.children} /><TravelerCounter label="幼童" icon={Baby} field="toddlers" value={newTrip.travelers.toddlers} /><TravelerCounter label="長者" icon={Accessibility} field="elderly" value={newTrip.travelers.elderly} /></div>
@@ -615,7 +663,7 @@ function TravelApp() {
           <div className="flex items-center justify-between py-3">
             <button onClick={() => setView('dashboard')} className="text-gray-500 hover:text-blue-600 text-sm">← 返回</button>
             <div className="text-center"><h1 className="font-bold text-lg">{currentTrip.destination}</h1><p className="text-xs text-gray-500">{currentTrip.startDate} ~ {currentTrip.endDate}</p></div>
-            <div className="flex gap-2"><button onClick={toggleTripLock} className={`p-2 rounded-full border ${currentTrip.isLocked ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'}`}>{currentTrip.isLocked ? <Lock size={16}/> : <Unlock size={16}/>}</button><button onClick={handlePrint} className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"><Printer size={16}/></button></div>
+            <div className="flex gap-2"><button onClick={toggleTripLock} className={`p-2 rounded-full border ${currentTrip.isLocked ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'}`}>{currentTrip.isLocked ? <Lock size={16}/> : <Unlock size={16}/>}</button><button onClick={() => setShowPreviewModal(true)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-full shadow-sm text-sm hover:bg-blue-700"><Eye size={14}/> 預覽</button></div>
           </div>
           <div className="flex gap-6 overflow-x-auto pb-1 scrollbar-hide">
             {[{ id: 'itinerary', icon: <MapPin size={18}/>, label: '行程' }, { id: 'packing', icon: <Briefcase size={18}/>, label: '行李' }, { id: 'budget', icon: <DollarSign size={18}/>, label: '記帳' }, { id: 'people', icon: <Users size={18}/>, label: '人員' }, { id: 'info', icon: <FileText size={18}/>, label: '資訊' }].map(tab => (
@@ -630,13 +678,9 @@ function TravelApp() {
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
              <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">📍 足跡打卡</h3>
-                {/* ... (CheckIn Form same as before) ... */}
                 <div className="space-y-3">
                    <div><label className="text-xs text-gray-500">備註</label><input type="text" value={newItem.notes} onChange={e=>setNewItem({...newItem, notes:e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50" placeholder="心情..."/></div>
-                   <div>
-                      <label className="text-xs text-gray-500">消費</label>
-                      <div className="flex gap-2"><input type="number" value={newItem.foreignCost} onChange={e=>handleForeignCostChange(e.target.value, newItem.currency)} className="flex-1 p-2 border rounded-lg bg-gray-50"/><select value={newItem.currency} onChange={e=>handleForeignCostChange(newItem.foreignCost, e.target.value)} className="w-20 p-2 border rounded-lg bg-white">{Object.keys(EXCHANGE_RATES).map(c=><option key={c} value={c}>{c}</option>)}</select></div>
-                   </div>
+                   <div><label className="text-xs text-gray-500">消費</label><div className="flex gap-2"><input type="number" value={newItem.foreignCost} onChange={e=>handleForeignCostChange(e.target.value, newItem.currency)} className="flex-1 p-2 border rounded-lg bg-gray-50"/><select value={newItem.currency} onChange={e=>handleForeignCostChange(newItem.foreignCost, e.target.value)} className="w-20 p-2 border rounded-lg bg-white">{Object.keys(EXCHANGE_RATES).map(c=><option key={c} value={c}>{c}</option>)}</select></div></div>
                    <div className="flex gap-2 mt-4"><button onClick={()=>setCheckInModal(false)} className="flex-1 py-2 text-gray-500">取消</button><button onClick={addItem} className="flex-1 py-2 bg-blue-600 text-white rounded-lg">確認</button></div>
                 </div>
              </div>
