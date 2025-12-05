@@ -8,7 +8,7 @@ import {
   Luggage, Plane, Baby, Accessibility, User, Navigation,
   History, MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
-  ExternalLink, Clock, Search, Utensils, Mountain
+  ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car, Phone
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -30,16 +30,62 @@ const APP_ID = "travel-mate-app-7ca34";
 
 // --- 3. 資料庫與常數 ---
 
+// 城市資料 (含緊急電話與叫車App)
 const CITY_DATA = {
-  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。" },
-  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。" },
-  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。" },
-  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。" },
-  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂，必登台北101觀景台。" },
-  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。" },
-  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。" },
-  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。" },
-  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。" },
+  "東京": { 
+    lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", 
+    intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。",
+    emergency: { police: "110", ambulance: "119" },
+    rideApp: "Uber / GO / DiDi"
+  },
+  "大阪": { 
+    lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", 
+    intro: "美食之都，道頓堀固力果跑跑人是必打卡點。",
+    emergency: { police: "110", ambulance: "119" },
+    rideApp: "Uber / GO / DiDi"
+  },
+  "京都": { 
+    lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", 
+    intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。",
+    emergency: { police: "110", ambulance: "119" },
+    rideApp: "MK Taxi / Uber"
+  },
+  "首爾": { 
+    lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", 
+    intro: "韓流中心，弘大購物與景福宮穿韓服體驗。",
+    emergency: { police: "112", ambulance: "119" },
+    rideApp: "Kakao T / Uber"
+  },
+  "台北": { 
+    lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", 
+    intro: "美食與夜市的天堂，必登台北101觀景台。",
+    emergency: { police: "110", ambulance: "119" },
+    rideApp: "Uber / 55688 / yoxi"
+  },
+  "曼谷": { 
+    lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", 
+    intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。",
+    emergency: { police: "191", ambulance: "1669" },
+    rideApp: "Grab / Bolt"
+  },
+  "倫敦": { 
+    lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", 
+    intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。",
+    emergency: { police: "999", ambulance: "999" },
+    rideApp: "Uber / Bolt / Addison Lee"
+  },
+  "巴黎": { 
+    lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", 
+    intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。",
+    emergency: { police: "17", ambulance: "15" },
+    rideApp: "Uber / Bolt / G7"
+  },
+  "香港": { 
+    lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", 
+    intro: "東方之珠，維多利亞港夜景世界三大夜景之一。",
+    emergency: { police: "999", ambulance: "999" },
+    rideApp: "Uber / HKTaxi"
+  },
 };
 const POPULAR_CITIES = Object.keys(CITY_DATA);
 const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約"];
@@ -49,11 +95,23 @@ const EXCHANGE_RATES = {
   "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1
 };
 
+// 預估消費水準 (基礎值)
 const ESTIMATED_COSTS = {
   "JP": { flight: 4000, hotel: 1000, food: 400, transport: 150 },
   "KR": { flight: 2500, hotel: 800, food: 300, transport: 100 },
   "HK": { flight: 0,    hotel: 0,    food: 400, transport: 100 }, 
+  "TH": { flight: 2000, hotel: 600, food: 200, transport: 80 },
+  "TW": { flight: 1800, hotel: 600, food: 250, transport: 80 },
+  "UK": { flight: 8000, hotel: 1800, food: 600, transport: 200 },
   "default": { flight: 5000, hotel: 1000, food: 400, transport: 150 }
+};
+
+// 目的預算加權 (AI 預算核心)
+const PURPOSE_MULTIPLIERS = {
+  "sightseeing": { flight: 1, hotel: 1, food: 1, transport: 1.2 }, // 多交通
+  "shopping": { flight: 1, hotel: 1, food: 0.8, transport: 1, shopping: 5000 }, // 額外購物金
+  "food": { flight: 1, hotel: 1, food: 2.0, transport: 1 }, // 吃好點
+  "adventure": { flight: 1, hotel: 1.2, food: 1, transport: 1.5 } // 門票與特殊住宿
 };
 
 // 行李物品定義 (含圖示與分類)
@@ -84,27 +142,75 @@ const BUDGET_CATEGORIES = {
   other: { label: "其他", icon: FileText, color: "text-gray-500" }
 };
 
-// --- AI 行程模板庫 (根據目的) ---
-const ITINERARY_TEMPLATES = {
-  "東京": {
-    "sightseeing": ["抵達東京 & 飯店Check-in", "淺草寺 & 晴空塔", "明治神宮 & 代代木公園", "東京鐵塔 & 增上寺", "台場海濱公園", "返程"],
-    "shopping": ["抵達東京 & 新宿Check-in", "澀谷109 & Parco", "原宿表參道 精品街", "銀座百貨巡禮", "秋葉原電器街", "Outlet & 機場"],
-    "food": ["抵達東京", "築地外市場 壽司早午餐", "月島文字燒", "新宿黃金街 居酒屋體驗", "六本木 米其林摘星", "返程"],
-    "adventure": ["抵達東京", "東京迪士尼樂園", "東京迪士尼海洋", "富士急樂園 一日遊", "箱根溫泉體驗", "返程"]
-  },
-  "大阪": {
-    "sightseeing": ["抵達大阪", "大阪城公園", "通天閣 & 新世界", "梅田藍天大廈 夜景", "海遊館", "返程"],
-    "shopping": ["抵達大阪", "心齋橋筋商店街", "道頓堀 藥妝採購", "梅田百貨商圈", "臨空城 Outlet", "返程"],
-    "food": ["抵達大阪", "道頓堀 章魚燒/大阪燒", "黑門市場 海鮮巡禮", "法善寺橫丁", "鶴橋 燒肉街", "返程"],
-    "adventure": ["抵達大阪", "環球影城 USJ (任天堂世界)", "奈良公園 餵鹿", "神戶 六甲山夜景", "京都 清水寺一日遊", "返程"]
-  },
-  "default": {
-    "sightseeing": ["抵達 & 入住", "市區地標巡禮", "歷史博物館/古蹟", "當地公園/自然景觀", "夜市/夜景", "返程"],
-    "shopping": ["抵達 & 入住", "市中心購物商圈", "當地特色市集", "大型購物中心", "紀念品採買", "返程"],
-    "food": ["抵達 & 入住", "著名小吃街", "特色咖啡廳", "當地人推薦餐廳", "超市零食採購", "返程"],
-    "adventure": ["抵達 & 入住", "主題樂園/遊樂場", "近郊自然步道", "水上活動/體驗", "特色表演觀賞", "返程"]
+// --- AI 智能行程生成邏輯 ---
+const generateSmartItinerary = (city, days, purpose, travelers) => {
+  const hasKids = travelers.children > 0 || travelers.toddlers > 0;
+  const hasElderly = travelers.elderly > 0;
+  
+  // 基礎行程庫
+  const POI = {
+    "東京": {
+      parks: ["上野恩賜公園", "新宿御苑", "井之頭公園"],
+      kids: ["東京迪士尼樂園", "東京迪士尼海洋", "上野動物園", "台場樂高樂園"],
+      shop: ["銀座百貨街", "新宿 LUMINE", "澀谷 PARCO", "御殿場 Outlet", "秋葉原電器街"],
+      culture: ["淺草寺 & 雷門", "明治神宮", "皇居", "東京鐵塔"],
+      food: ["築地場外市場", "月島文字燒街", "新宿黃金街"],
+    },
+    "大阪": {
+      parks: ["萬博紀念公園", "大阪城公園"],
+      kids: ["環球影城 USJ (任天堂世界)", "海遊館", "天王寺動物園"],
+      shop: ["心齋橋筋商店街", "梅田百貨圈", "臨空城 Outlet"],
+      culture: ["大阪城天守閣", "通天閣 & 新世界", "四天王寺"],
+      food: ["道頓堀美食街", "黑門市場", "鶴橋燒肉街"],
+    }
+  };
+
+  const cityPOI = POI[city] || { 
+    parks: ["市中心公園"], kids: ["當地遊樂園", "動物園"], 
+    shop: ["市中心商圈", "Outlet"], culture: ["歷史博物館", "地標塔"], food: ["著名夜市", "美食街"] 
+  };
+
+  let itinerary = [];
+  
+  // 第一天通常是抵達
+  itinerary.push({ title: "抵達 & 飯店 Check-in", notes: "辦理入住，熟悉周邊環境，購買交通卡" });
+
+  // 中間天數規劃
+  for (let i = 1; i < days - 1; i++) {
+    let dayPlan = "";
+    let dayNote = "";
+
+    // 優先順序邏輯
+    if (purpose === 'adventure' && cityPOI.kids.length > 0 && i === 1) {
+       dayPlan = cityPOI.kids[0]; // 冒險或有小孩，第二天去樂園
+       dayNote = "全日遊玩，記得提早購票";
+    } else if (hasKids && cityPOI.kids.length > 0 && i % 3 === 0) {
+       dayPlan = cityPOI.kids[Math.min(i, cityPOI.kids.length-1)] || "親子友善景點"; // 有小孩，每三天安排一個親子點
+       dayNote = "適合親子同樂";
+    } else if (purpose === 'shopping') {
+       const spot = cityPOI.shop[i % cityPOI.shop.length];
+       dayPlan = `${spot} 血拼日`;
+       dayNote = "準備好信用卡與大購物袋";
+    } else if (purpose === 'food') {
+       const spot = cityPOI.food[i % cityPOI.food.length];
+       dayPlan = `${spot} 美食巡禮`;
+       dayNote = "品嚐當地特色料理";
+    } else {
+       // 預設觀光 (Sightseeing)
+       const spot = cityPOI.culture[i % cityPOI.culture.length];
+       dayPlan = `${spot} 文化之旅`;
+       dayNote = hasElderly ? "行程寬鬆，少走樓梯" : "探索城市歷史";
+    }
+    
+    itinerary.push({ title: dayPlan, notes: dayNote });
   }
+
+  // 最後一天
+  itinerary.push({ title: "整理行李 & 前往機場", notes: "檢查護照，最後免稅店採買" });
+
+  return itinerary;
 };
+
 
 function TravelApp() {
   const [user, setUser] = useState(null);
@@ -188,11 +294,16 @@ function TravelApp() {
     } catch (e) { console.error(e); }
   };
 
+  // --- AI 預算估算邏輯 (增強版) ---
   const calculateEstimatedBudget = () => {
     if (newTrip.endDate < newTrip.startDate) return;
     const cityInfo = CITY_DATA[newTrip.destination];
     const region = cityInfo ? cityInfo.region : 'default';
     const costs = ESTIMATED_COSTS[region] || ESTIMATED_COSTS['default'];
+    
+    // 取得目的加權
+    const multiplier = PURPOSE_MULTIPLIERS[newTrip.purpose] || PURPOSE_MULTIPLIERS['sightseeing'];
+
     const start = new Date(newTrip.startDate);
     const end = new Date(newTrip.endDate);
     const days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
@@ -200,16 +311,27 @@ function TravelApp() {
     const totalPeople = newTrip.travelers.adults + newTrip.travelers.children * 0.8 + newTrip.travelers.toddlers * 0.3 + newTrip.travelers.elderly * 0.9;
     const flightCount = newTrip.travelers.adults + newTrip.travelers.children + newTrip.travelers.elderly + (newTrip.travelers.toddlers > 0 ? 0.1 : 0);
 
-    const estimatedFlight = costs.flight * flightCount;
-    const estimatedHotel = costs.hotel * (Math.ceil(totalPeople / 2)) * days; 
-    const estimatedFood = costs.food * totalPeople * days;
-    const estimatedTransport = costs.transport * totalPeople * days;
-    const total = estimatedFlight + estimatedHotel + estimatedFood + estimatedTransport;
+    const estimatedFlight = costs.flight * flightCount * multiplier.flight;
+    const estimatedHotel = costs.hotel * (Math.ceil(totalPeople / 2)) * days * multiplier.hotel; 
+    const estimatedFood = costs.food * totalPeople * days * multiplier.food;
+    const estimatedTransport = costs.transport * totalPeople * days * multiplier.transport;
+    
+    // 額外購物金 (如果目的是購物)
+    const extraShopping = (newTrip.purpose === 'shopping' ? (multiplier.shopping || 0) * newTrip.travelers.adults : 0);
+
+    const total = estimatedFlight + estimatedHotel + estimatedFood + estimatedTransport + extraShopping;
 
     setNewTrip(prev => ({
       ...prev,
       estimatedBudget: Math.round(total),
-      budgetDetails: { flight: Math.round(estimatedFlight), hotel: Math.round(estimatedHotel), food: Math.round(estimatedFood), transport: Math.round(estimatedTransport), days }
+      budgetDetails: { 
+        flight: Math.round(estimatedFlight), 
+        hotel: Math.round(estimatedHotel), 
+        food: Math.round(estimatedFood), 
+        transport: Math.round(estimatedTransport), 
+        shopping: Math.round(extraShopping),
+        days 
+      }
     }));
   };
 
@@ -263,30 +385,33 @@ function TravelApp() {
         addSubItem('packing', '推車', 'move', '幼童', 1);
       }
 
-      // 1. AI 行程生成 (根據目的)
-      const templates = ITINERARY_TEMPLATES[newTrip.destination] || ITINERARY_TEMPLATES['default'];
-      const purposePlans = templates[newTrip.purpose] || templates['sightseeing'];
-
-      for (let i = 0; i < days; i++) {
-        const dateStr = new Date(new Date(newTrip.startDate).getTime() + i * 86400000).toISOString().split('T')[0];
-        // 循環使用模板
-        const planTitle = purposePlans[i % purposePlans.length] || `第 ${i+1} 天行程`;
-        
+      // 1. 生成智能行程 (使用新邏輯)
+      const smartItinerary = generateSmartItinerary(newTrip.destination, days, newTrip.purpose, newTrip.travelers);
+      
+      smartItinerary.forEach((plan, idx) => {
+        const dateStr = new Date(new Date(newTrip.startDate).getTime() + idx * 86400000).toISOString().split('T')[0];
         batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
           tripId, type: 'itinerary', 
-          title: planTitle, 
+          title: plan.title, 
           date: dateStr, 
           startTime: '09:00',
           duration: '3h',
-          notes: 'AI 建議行程',
+          notes: plan.notes,
           completed: false, 
           createdAt: serverTimestamp()
+        }));
+      });
+
+      // 如果有預估購物金，加入預算表
+      if (newTrip.budgetDetails.shopping > 0) {
+        batch.push(addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), {
+          tripId, type: 'budget', title: '🛍️ 預留購物金', cost: newTrip.budgetDetails.shopping, category: 'shopping', createdAt: serverTimestamp()
         }));
       }
 
       await Promise.all(batch);
       setNewTrip({ origin: '香港', destination: '', startDate: '', endDate: '', purpose: 'sightseeing', travelers: { adults: 1, children: 0, toddlers: 0, elderly: 0 }, estimatedBudget: 0, budgetDetails: {} });
-      alert("AI 行程規劃完成！");
+      alert("AI 深度行程規劃完成！");
     } catch (error) {
       console.error(error);
       setLoadingWeather(false);
@@ -388,7 +513,6 @@ function TravelApp() {
     const destination = points[points.length - 1].title;
     const waypoints = points.slice(1, -1).map(p => p.title).join('|');
     
-    // 如果只有一個點，直接搜尋
     if (points.length === 1) {
       window.open(`https://www.google.com/maps/search/${currentTrip.destination}+${origin}`, '_blank');
     } else {
@@ -503,7 +627,7 @@ function TravelApp() {
                     <div className="flex-1 space-y-1"><label className="text-xs text-gray-500">結束</label><input type="date" value={newTrip.endDate} onChange={e=>setNewTrip({...newTrip, endDate: e.target.value})} className="w-full p-2 border rounded-lg" required /></div>
                  </div>
                  <div className="space-y-1">
-                    <label className="text-xs text-gray-500">旅遊目的 (AI 生成依據)</label>
+                    <label className="text-xs text-gray-500">旅遊目的 (影響預算與行程)</label>
                     <div className="flex gap-2">
                        {[{id:'sightseeing', icon:Camera, label:'觀光'}, {id:'shopping', icon:ShoppingBag, label:'購物'}, {id:'food', icon:Utensils, label:'美食'}, {id:'adventure', icon:Mountain, label:'冒險'}].map(p => (
                          <button type="button" key={p.id} onClick={() => setNewTrip({...newTrip, purpose: p.id})} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-lg border text-xs transition-colors ${newTrip.purpose === p.id ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
@@ -520,6 +644,17 @@ function TravelApp() {
                 <TravelerCounter label="幼童" icon={Baby} field="toddlers" value={newTrip.travelers.toddlers} />
                 <TravelerCounter label="長者" icon={Accessibility} field="elderly" value={newTrip.travelers.elderly} />
               </div>
+
+              {newTrip.estimatedBudget > 0 && (
+                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                  <div className="flex justify-between items-center text-sm font-bold text-blue-800">
+                     <span className="flex items-center gap-1"><Calculator size={14}/> AI 預算估算: ${newTrip.estimatedBudget.toLocaleString()}</span>
+                     <span className="text-xs font-normal">({newTrip.budgetDetails.days}天)</span>
+                  </div>
+                  {newTrip.purpose === 'shopping' && <div className="text-[10px] text-blue-500 mt-1">*已包含額外購物預算</div>}
+                  {newTrip.purpose === 'food' && <div className="text-[10px] text-blue-500 mt-1">*已調高餐飲預算</div>}
+                </div>
+              )}
 
               <button type="submit" disabled={loadingWeather} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 flex justify-center items-center gap-2">
                  AI 生成行程
@@ -551,6 +686,8 @@ function TravelApp() {
 
   // 詳細頁面
   const tripItems = items.filter(i => i.type === activeTab);
+  const cityEmerg = CITY_DATA[currentTrip.destination]?.emergency;
+  const rideApp = CITY_DATA[currentTrip.destination]?.rideApp;
   
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col">
@@ -612,6 +749,27 @@ function TravelApp() {
         {/* 2. 行程列表 (按日期分組) */}
         {activeTab === 'itinerary' && (
           <div className="space-y-6">
+            
+            {/* 緊急聯絡 & 交通看板 */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+               {cityEmerg ? (
+                 <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex flex-col gap-2">
+                    <div className="text-xs text-red-500 font-bold flex items-center gap-1"><Siren size={12}/> 當地緊急電話</div>
+                    <div className="flex gap-2">
+                       <a href={`tel:${cityEmerg.police}`} className="flex-1 bg-white border border-red-200 text-red-600 rounded-lg py-1 flex items-center justify-center gap-1 text-xs hover:bg-red-600 hover:text-white transition-colors"><Siren size={12}/> 報警 {cityEmerg.police}</a>
+                       <a href={`tel:${cityEmerg.ambulance}`} className="flex-1 bg-white border border-red-200 text-red-600 rounded-lg py-1 flex items-center justify-center gap-1 text-xs hover:bg-red-600 hover:text-white transition-colors"><Ambulance size={12}/> 急救 {cityEmerg.ambulance}</a>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="bg-gray-100 p-3 rounded-xl text-xs text-gray-500 flex items-center justify-center">無緊急資訊</div>
+               )}
+               
+               <div className="bg-green-50 border border-green-100 p-3 rounded-xl flex flex-col gap-2">
+                  <div className="text-xs text-green-600 font-bold flex items-center gap-1"><Car size={12}/> 當地叫車推薦</div>
+                  <div className="text-sm font-bold text-green-700">{rideApp || "Uber"}</div>
+               </div>
+            </div>
+
             <div className="flex gap-2">
               <button onClick={handleCheckIn} className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-md text-sm font-bold flex gap-2 items-center justify-center"><Camera size={18} /> 足跡打卡</button>
             </div>
