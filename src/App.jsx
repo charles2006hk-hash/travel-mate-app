@@ -194,7 +194,6 @@ const generateSmartItinerary = (city, days, purpose, travelers) => {
   return itinerary;
 };
 
-// 修正: 儲存 icon 字串而非元件
 const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
@@ -394,11 +393,6 @@ function TravelApp() {
     </div>
   );
 
-  const WeatherIconComponent = ({ iconName }) => {
-      const Icon = WEATHER_ICONS[iconName] || Sun;
-      return <Icon size={14} />;
-  };
-
   const ReportTemplate = () => {
     if (!currentTrip) return null;
     const dayDiff = Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1);
@@ -464,7 +458,7 @@ function TravelApp() {
              {trips.map(trip => (
                <div key={trip.id} onClick={() => openTrip(trip)} className="bg-white rounded-2xl shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-100 transition-all group">
                  <div className="h-32 bg-gray-200 relative">
-                    <img src={CITY_DATA[trip.destination]?.img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/>
+                    <img src={CITY_DATA[trip.destination]?.img || "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4"><h3 className="text-xl font-bold text-white">{trip.destination}</h3></div>
                     <button onClick={(e) => deleteTrip(trip.id, e)} className="absolute top-2 right-2 bg-white/20 backdrop-blur p-2 rounded-full text-white hover:bg-red-500 hover:text-white transition-colors"><Trash2 size={14}/></button>
                  </div>
@@ -599,12 +593,6 @@ function TravelApp() {
   // Trip Detail View
   const tripItems = items.filter(i => i.type === activeTab);
   const citySpots = POI_DB[currentTrip.destination] || POI_DB['default'];
-  
-  // 天氣圖示轉換 (避免直接存元件)
-  const WeatherIconComponent = ({ iconName }) => {
-      const Icon = WEATHER_ICONS[iconName] || Sun;
-      return <Icon size={14} />;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col bg-white">
