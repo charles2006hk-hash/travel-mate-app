@@ -3,13 +3,13 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithPopup } from "firebase/auth";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from "firebase/firestore";
 import { 
-  Trash2, Plus, Minus, MapPin, Calendar, CheckCircle2, Circle, 
-  DollarSign, FileText, Sun, CloudRain, Snowflake, 
+  Trash2, Plus, Minus, MapPin, Calendar as CalIcon, CheckCircle2, Circle, 
+  DollarSign, FileText, Sun, CloudRain, Snowflake, Cloud, Droplets, Wind,
   Luggage, Plane, Baby, Accessibility, User, Navigation,
   History, MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
   ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car,
-  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart
+  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight, Share
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -33,68 +33,20 @@ const APP_ID = "travel-mate-app-7ca34";
 // --- 3. 資料庫與常數 ---
 
 const CITY_DATA = {
-  "東京": { 
-    lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", 
-    intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。",
-    emergency: { police: "110", ambulance: "119" },
-    rideApp: "Uber / GO / DiDi"
-  },
-  "大阪": { 
-    lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", 
-    intro: "美食之都，道頓堀固力果跑跑人是必打卡點。",
-    emergency: { police: "110", ambulance: "119" },
-    rideApp: "Uber / GO / DiDi"
-  },
-  "京都": { 
-    lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", 
-    intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。",
-    emergency: { police: "110", ambulance: "119" },
-    rideApp: "MK Taxi / Uber"
-  },
-  "首爾": { 
-    lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", 
-    intro: "韓流中心，弘大購物與景福宮穿韓服體驗。",
-    emergency: { police: "112", ambulance: "119" },
-    rideApp: "Kakao T / Uber"
-  },
-  "台北": { 
-    lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", 
-    intro: "美食與夜市的天堂，必登台北101觀景台。",
-    emergency: { police: "110", ambulance: "119" },
-    rideApp: "Uber / 55688 / yoxi"
-  },
-  "曼谷": { 
-    lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", 
-    intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。",
-    emergency: { police: "191", ambulance: "1669" },
-    rideApp: "Grab / Bolt"
-  },
-  "倫敦": { 
-    lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", 
-    intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。",
-    emergency: { police: "999", ambulance: "999" },
-    rideApp: "Uber / Bolt / Addison Lee"
-  },
-  "巴黎": { 
-    lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", 
-    intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。",
-    emergency: { police: "17", ambulance: "15" },
-    rideApp: "Uber / Bolt / G7"
-  },
-  "香港": { 
-    lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", 
-    intro: "東方之珠，維多利亞港夜景世界三大夜景之一。",
-    emergency: { police: "999", ambulance: "999" },
-    rideApp: "Uber / HKTaxi"
-  },
+  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
+  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO / DiDi" },
+  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi / Uber" },
+  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T / Uber" },
+  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688 / yoxi" },
+  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab / Bolt" },
+  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / Bolt / Addison Lee" },
+  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber / Bolt / G7" },
+  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber / HKTaxi" },
 };
 const POPULAR_CITIES = Object.keys(CITY_DATA);
 const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約"];
 
-const EXCHANGE_RATES = {
-  "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, 
-  "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1
-};
+const EXCHANGE_RATES = { "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1 };
 
 const ESTIMATED_COSTS = {
   "JP": { flight: 4000, hotel: 1000, food: 400, transport: 150 },
@@ -139,31 +91,109 @@ const BUDGET_CATEGORIES = {
   other: { label: "其他", icon: FileText, color: "text-gray-500" }
 };
 
-// --- AI 行程生成 ---
+// --- Custom Components ---
+
+// 自定義日曆範圍選擇器
+const RangeCalendar = ({ startDate, endDate, onChange }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+
+  const handleDateClick = (day) => {
+    const clickedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const dateStr = clickedDate.toISOString().split('T')[0];
+
+    if (!startDate || (startDate && endDate)) {
+      onChange({ startDate: dateStr, endDate: '' });
+    } else {
+      if (new Date(dateStr) < new Date(startDate)) {
+        onChange({ startDate: dateStr, endDate: startDate });
+      } else {
+        onChange({ startDate: startDate, endDate: dateStr });
+      }
+    }
+  };
+
+  const isSelected = (day) => {
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day).toISOString().split('T')[0];
+    return d === startDate || d === endDate;
+  };
+
+  const isInRange = (day) => {
+    if (!startDate || !endDate) return false;
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    return d > new Date(startDate) && d < new Date(endDate);
+  };
+
+  return (
+    <div className="bg-white rounded-xl border p-4 shadow-sm">
+      <div className="flex justify-between items-center mb-4">
+        <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft size={20}/></button>
+        <span className="font-bold">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+        <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="p-1 hover:bg-gray-100 rounded"><ChevronRight size={20}/></button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2 text-gray-400">
+        {['日','一','二','三','四','五','六'].map(d => <div key={d}>{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: firstDayOfMonth(currentMonth) }).map((_, i) => <div key={`empty-${i}`} />)}
+        {Array.from({ length: daysInMonth(currentMonth) }).map((_, i) => {
+          const day = i + 1;
+          const selected = isSelected(day);
+          const inRange = isInRange(day);
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => handleDateClick(day)}
+              className={`h-9 w-9 rounded-full text-sm flex items-center justify-center transition-all
+                ${selected ? 'bg-blue-600 text-white font-bold shadow-md' : ''}
+                ${inRange ? 'bg-blue-100 text-blue-800' : ''}
+                ${!selected && !inRange ? 'hover:bg-gray-100 text-gray-700' : ''}
+              `}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-4 text-center text-xs text-gray-500 border-t pt-2">
+        {startDate ? (endDate ? `已選擇：${startDate} 至 ${endDate}` : `起點：${startDate} (請選擇結束日期)`) : '請點擊日期開始規劃'}
+      </div>
+    </div>
+  );
+};
+
+// --- Helper Functions ---
+
+// 擴充 AI 行程生成
 const generateSmartItinerary = (city, days, purpose, travelers) => {
   const hasKids = travelers.children > 0 || travelers.toddlers > 0;
   const hasElderly = travelers.elderly > 0;
   
+  // 更豐富的資料庫
   const POI = {
     "東京": {
-      parks: ["上野恩賜公園", "新宿御苑", "井之頭公園"],
-      kids: ["東京迪士尼樂園", "東京迪士尼海洋", "上野動物園", "台場樂高樂園"],
-      shop: ["銀座百貨街", "新宿 LUMINE", "澀谷 PARCO", "御殿場 Outlet", "秋葉原電器街"],
-      culture: ["淺草寺 & 雷門", "明治神宮", "皇居", "東京鐵塔"],
-      food: ["築地場外市場", "月島文字燒街", "新宿黃金街"],
+      parks: ["上野恩賜公園 🌸", "新宿御苑 🌳", "井之頭公園 🦢", "代代木公園"],
+      kids: ["東京迪士尼樂園 🏰", "東京迪士尼海洋 🌋", "上野動物園 🐼", "台場樂高樂園 🧱", "三鷹之森吉卜力美術館"],
+      shop: ["銀座百貨街 🛍️", "新宿 LUMINE", "澀谷 PARCO", "御殿場 Outlet", "秋葉原電器街 ⚡", "吉祥寺商店街"],
+      culture: ["淺草寺 & 雷門 🏮", "明治神宮 ⛩️", "皇居", "東京鐵塔 🗼", "根津神社"],
+      food: ["築地場外市場 🍣", "月島文字燒街", "新宿黃金街 🍺", "六本木之丘", "淺草炸肉餅"],
     },
     "大阪": {
-      parks: ["萬博紀念公園", "大阪城公園"],
-      kids: ["環球影城 USJ (任天堂世界)", "海遊館", "天王寺動物園"],
-      shop: ["心齋橋筋商店街", "梅田百貨圈", "臨空城 Outlet"],
-      culture: ["大阪城天守閣", "通天閣 & 新世界", "四天王寺"],
-      food: ["道頓堀美食街", "黑門市場", "鶴橋燒肉街"],
-    }
+      parks: ["萬博紀念公園 🌞", "大阪城公園", "中之島公園"],
+      kids: ["環球影城 USJ (任天堂世界) 🍄", "海遊館 🐋", "天王寺動物園", "枚方公園"],
+      shop: ["心齋橋筋商店街", "梅田百貨圈", "臨空城 Outlet", "千日前道具屋筋"],
+      culture: ["大阪城天守閣 🏯", "通天閣 & 新世界", "四天王寺", "住吉大社"],
+      food: ["道頓堀美食街 🐙", "黑門市場 🐟", "鶴橋燒肉街 🥩", "法善寺橫丁"],
+    },
+    // ... 其他城市可以用類似結構擴充
   };
 
   const cityPOI = POI[city] || { 
-    parks: ["市中心公園"], kids: ["當地遊樂園", "動物園"], 
-    shop: ["市中心商圈", "Outlet"], culture: ["歷史博物館", "地標塔"], food: ["著名夜市", "美食街"] 
+    parks: ["市中心公園", "植物園"], kids: ["當地遊樂園", "動物園", "科博館"], 
+    shop: ["市中心商圈", "Outlet", "傳統市集"], culture: ["歷史博物館", "地標塔", "老街"], food: ["著名夜市", "美食街", "景觀餐廳"] 
   };
 
   let itinerary = [];
@@ -173,30 +203,70 @@ const generateSmartItinerary = (city, days, purpose, travelers) => {
     let dayPlan = "";
     let dayNote = "";
 
+    // 隨機選取避免重複的簡單邏輯
+    const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
     if (purpose === 'adventure' && cityPOI.kids.length > 0 && i === 1) {
        dayPlan = cityPOI.kids[0]; 
-       dayNote = "全日遊玩，記得提早購票";
-    } else if (hasKids && cityPOI.kids.length > 0 && i % 3 === 0) {
-       dayPlan = cityPOI.kids[Math.min(i, cityPOI.kids.length-1)] || "親子友善景點"; 
-       dayNote = "適合親子同樂";
+       dayNote = "全日遊玩，記得提早購票！";
+    } else if (hasKids && i % 3 === 0) {
+       dayPlan = getRandom(cityPOI.kids) || "親子友善景點"; 
+       dayNote = "適合親子同樂，記得帶推車/水壺";
     } else if (purpose === 'shopping') {
-       const spot = cityPOI.shop[i % cityPOI.shop.length];
-       dayPlan = `${spot} 血拼日`;
-       dayNote = "準備好信用卡與大購物袋";
+       dayPlan = `${getRandom(cityPOI.shop)} 血拼日`;
+       dayNote = "準備好信用卡與大購物袋，記得退稅";
     } else if (purpose === 'food') {
-       const spot = cityPOI.food[i % cityPOI.food.length];
-       dayPlan = `${spot} 美食巡禮`;
-       dayNote = "品嚐當地特色料理";
+       dayPlan = `${getRandom(cityPOI.food)} 美食巡禮`;
+       dayNote = "品嚐當地特色料理，建議先訂位";
     } else {
-       const spot = cityPOI.culture[i % cityPOI.culture.length];
-       dayPlan = `${spot} 文化之旅`;
-       dayNote = hasElderly ? "行程寬鬆，少走樓梯" : "探索城市歷史";
+       // 混合行程
+       const spot = i % 2 === 0 ? getRandom(cityPOI.culture) : getRandom(cityPOI.parks);
+       dayPlan = `${spot} 深度遊`;
+       dayNote = hasElderly ? "行程寬鬆，少走樓梯，多安排休息" : "探索城市歷史與自然";
     }
     
     itinerary.push({ title: dayPlan, notes: dayNote });
   }
   itinerary.push({ title: "整理行李 & 前往機場", notes: "檢查護照，最後免稅店採買" });
   return itinerary;
+};
+
+// 取得天氣 (整合 Open-Meteo API)
+const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${startStr}&end_date=${endStr}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    // 整理成 Map: date -> info
+    const weatherMap = {};
+    if (data.daily) {
+      data.daily.time.forEach((date, i) => {
+        const code = data.daily.weathercode[i];
+        let icon = Sun;
+        let desc = "晴";
+        
+        // 簡單天氣代碼轉換 (WMO Code)
+        if (code >= 95) { icon = CloudRain; desc = "雷雨"; }
+        else if (code >= 71) { icon = Snowflake; desc = "雪"; }
+        else if (code >= 51) { icon = Droplets; desc = "雨"; }
+        else if (code >= 3) { icon = Cloud; desc = "陰"; }
+        else if (code >= 1) { icon = Cloud; desc = "多雲"; }
+
+        weatherMap[date] = {
+          max: data.daily.temperature_2m_max[i],
+          min: data.daily.temperature_2m_min[i],
+          rain: data.daily.precipitation_probability_max[i],
+          icon: icon,
+          desc: desc
+        };
+      });
+    }
+    return weatherMap;
+  } catch (e) {
+    console.error("Weather Fetch Error", e);
+    return {};
+  }
 };
 
 
@@ -208,7 +278,8 @@ function TravelApp() {
   const [items, setItems] = useState([]);
   const [searchHistory, setSearchHistory] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false); 
-  const [showPreviewModal, setShowPreviewModal] = useState(false); // 預覽彈窗
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [weatherData, setWeatherData] = useState({}); // 儲存天氣資訊
 
   // 表單狀態
   const [newTrip, setNewTrip] = useState({
@@ -250,6 +321,14 @@ function TravelApp() {
     const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), where('tripId', '==', currentTrip.id));
     return onSnapshot(q, (snapshot) => setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
   }, [user, currentTrip]);
+
+  // 進入行程時載入天氣
+  useEffect(() => {
+    if (currentTrip && CITY_DATA[currentTrip.destination]) {
+      const { lat, lon } = CITY_DATA[currentTrip.destination];
+      fetchDailyWeather(lat, lon, currentTrip.startDate, currentTrip.endDate).then(data => setWeatherData(data));
+    }
+  }, [currentTrip]);
 
   const updateTripActualCost = async (tripId) => {
     if (!user || !tripId) return;
@@ -295,23 +374,15 @@ function TravelApp() {
     if (newTrip.destination && newTrip.startDate && newTrip.endDate) calculateEstimatedBudget();
   }, [newTrip.destination, newTrip.startDate, newTrip.endDate, newTrip.travelers, newTrip.purpose]);
 
-  // --- 用戶與鎖定功能 ---
+  // --- CRUD & Actions ---
 
   const handleGoogleLink = async () => {
     try {
-      if (user.isAnonymous) {
-        await linkWithPopup(user, googleProvider);
-        alert("成功綁定 Google 帳號！");
-      } else {
-        alert("您已經登入永久帳號。");
-      }
+      if (user.isAnonymous) await linkWithPopup(user, googleProvider);
+      else alert("已登入");
     } catch (error) {
       if (error.code === 'auth/credential-already-in-use') {
-        if(confirm("此 Google 帳號已有資料。是否切換到該帳號？")) {
-           await signInWithPopup(auth, googleProvider);
-        }
-      } else {
-        alert("綁定失敗，請確認 Firebase Console 設定。");
+        if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider);
       }
     }
   };
@@ -320,10 +391,7 @@ function TravelApp() {
     const data = { user: user.uid, trips: trips, items: items, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `travel_backup_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `travel_backup.json`; a.click();
   };
 
   const toggleTripLock = async () => {
@@ -331,13 +399,14 @@ function TravelApp() {
     setCurrentTrip(prev => ({...prev, isLocked: !prev.isLocked}));
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    // 進入列印模式前，確保是展開的
+    window.print();
+  };
 
-  // --- CRUD 操作 (CreateTrip, DeleteTrip, OpenTrip, AddItem, EditItem, DeleteItem, ToggleItem, UpdateQuantity, OpenMap, CheckIn) ---
-  // (此處省略部分重複的 CRUD 代碼以節省空間，邏輯與前版相同)
   const createTrip = async (e) => {
     e.preventDefault();
-    if (newTrip.endDate < newTrip.startDate) return alert("日期錯誤");
+    if (!newTrip.startDate || !newTrip.endDate) return alert("請選擇日期");
     if (!newTrip.destination) return;
     try {
       setLoadingWeather(true);
@@ -405,57 +474,40 @@ function TravelApp() {
   const TravelerCounter = ({ label, icon: Icon, value, field }) => (
     <div className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-xs">
       <div className="flex items-center gap-1"><Icon size={14} className="text-gray-500" /><span>{label}</span></div>
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setNewTrip(p => ({...p, travelers: {...p.travelers, [field]: Math.max(0, p.travelers[field]-1)}}))} className="w-5 h-5 rounded bg-white border flex items-center justify-center">-</button>
-        <span className="w-3 text-center">{value}</span>
-        <button type="button" onClick={() => setNewTrip(p => ({...p, travelers: {...p.travelers, [field]: p.travelers[field]+1}}))} className="w-5 h-5 rounded bg-white border flex items-center justify-center text-blue-500">+</button>
-      </div>
+      <div className="flex items-center gap-2"><button type="button" onClick={() => setNewTrip(p => ({...p, travelers: {...p.travelers, [field]: Math.max(0, p.travelers[field]-1)}}))} className="w-5 h-5 rounded bg-white border flex items-center justify-center">-</button><span className="w-3 text-center">{value}</span><button type="button" onClick={() => setNewTrip(p => ({...p, travelers: {...p.travelers, [field]: p.travelers[field]+1}}))} className="w-5 h-5 rounded bg-white border flex items-center justify-center text-blue-500">+</button></div>
     </div>
   );
 
-  // --- Report Component (共用於 Preview & Print) ---
+  // --- Report Component (Live & Print) ---
   const ReportTemplate = () => {
     const dayDiff = Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1);
     const dateArray = Array.from({length: dayDiff}).map((_, i) => new Date(new Date(currentTrip.startDate).getTime() + i * 86400000).toISOString().split('T')[0]);
     
     return (
       <div className="bg-white text-gray-800 font-sans p-8 max-w-[210mm] mx-auto min-h-[297mm] relative">
-         {/* 雜誌風 Header */}
          <div className="border-b-4 border-double border-gray-800 pb-6 mb-8 text-center font-serif">
-             <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mb-2 uppercase tracking-widest">
-               <Plane size={14} /> Travel Itinerary & Guide
-             </div>
-             <h1 className="text-4xl font-bold text-gray-900 mb-3">
-               {user?.displayName || '親愛的旅客'} 的 {currentTrip.destination} 之旅
-             </h1>
-             <p className="text-lg text-gray-600 italic">
-               {currentTrip.startDate} — {currentTrip.endDate} • {dayDiff} 天
-             </p>
+             <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mb-2 uppercase tracking-widest"><Plane size={14} /> Travel Itinerary</div>
+             <h1 className="text-4xl font-bold text-gray-900 mb-3">{user?.displayName || '親愛的旅客'} 的 {currentTrip.destination} 之旅</h1>
+             <p className="text-lg text-gray-600 italic">{currentTrip.startDate} — {currentTrip.endDate} • {dayDiff} 天</p>
          </div>
-
-         {/* 溫暖的開場白 */}
          <div className="mb-8 p-6 bg-[#fdfbf7] border border-[#e8e4dc] rounded-xl relative">
             <div className="absolute top-4 left-4 text-gray-300"><Heart size={20}/></div>
-            <p className="text-center text-gray-700 italic font-serif px-8">
-               "旅行不僅是抵達目的地，更是一段探索自我的過程。願這份專屬計畫，能為您帶來一段充滿驚喜與美好回憶的旅程。"
-            </p>
+            <p className="text-center text-gray-700 italic font-serif px-8">"旅行不僅是抵達目的地，更是一段探索自我的過程。願這份專屬計畫，能為您帶來一段充滿驚喜與美好回憶的旅程。"</p>
          </div>
-
-         {/* 雙欄排版核心 (Two-Column Layout) */}
          <div className="flex flex-row gap-8 items-start">
-            
-            {/* 左欄：主要行程 (65%) */}
             <div className="w-[65%]">
-               <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2">
-                  <MapPin size={20} className="text-blue-600"/> 每日行程規劃
-               </h2>
+               <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2"><MapPin size={20} className="text-blue-600"/> 每日行程</h2>
                <div className="space-y-6">
                   {dateArray.map((dateStr, idx) => {
                      const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
+                     const w = weatherData[dateStr]; // 天氣資料
                      return (
-                        <div key={dateStr} className="relative pl-4 border-l-2 border-gray-200">
+                        <div key={dateStr} className="relative pl-4 border-l-2 border-gray-200 break-inside-avoid">
                            <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-blue-600"></div>
-                           <h3 className="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wide">Day {idx+1} • {dateStr}</h3>
+                           <div className="flex justify-between items-center mb-2">
+                              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Day {idx+1} • {dateStr}</h3>
+                              {w && <div className="flex items-center gap-1 text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded-full border border-blue-100"><w.icon size={12}/> {w.desc} {w.max}°C <span className="text-blue-400">☔{w.rain}%</span></div>}
+                           </div>
                            {dayItems.length === 0 ? <p className="text-xs text-gray-400 italic">本日自由活動</p> : (
                               <div className="space-y-2">
                                  {dayItems.map(item => (
@@ -472,12 +524,8 @@ function TravelApp() {
                   })}
                </div>
             </div>
-
-            {/* 右欄：資訊看板 (35%) */}
             <div className="w-[35%] space-y-8">
-               
-               {/* 1. 財務概況 */}
-               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 break-inside-avoid">
                   <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-sm uppercase"><Calculator size={14}/> 財務概況</h3>
                   <div className="space-y-2 text-sm">
                      <div className="flex justify-between"><span>總預算</span><span className="font-bold">${currentTrip.estimatedBudget?.toLocaleString()}</span></div>
@@ -485,25 +533,18 @@ function TravelApp() {
                      <div className="border-t pt-2 mt-2 flex justify-between font-bold"><span>剩餘</span><span className={(currentTrip.estimatedBudget-budgetStats.total)<0?'text-red-500':'text-green-600'}>${(currentTrip.estimatedBudget-budgetStats.total).toLocaleString()}</span></div>
                   </div>
                </div>
-
-               {/* 2. 行李清單 (精簡版) */}
-               <div>
+               <div className="break-inside-avoid">
                   <h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Briefcase size={14}/> 必帶物品</h3>
                   <div className="text-xs text-gray-600 space-y-1">
-                     {items.filter(i => i.type === 'packing').slice(0, 15).map(item => ( // 只顯示前15項避免爆頁
+                     {items.filter(i => i.type === 'packing').slice(0, 15).map(item => (
                         <div key={item.id} className="flex items-center gap-2">
-                           <div className="w-3 h-3 border border-gray-400 rounded-sm"></div>
-                           <span>{item.title}</span>
-                           {item.quantity > 1 && <span className="text-gray-400">x{item.quantity}</span>}
+                           <div className="w-3 h-3 border border-gray-400 rounded-sm"></div><span>{item.title}</span>{item.quantity > 1 && <span className="text-gray-400">x{item.quantity}</span>}
                         </div>
                      ))}
-                     {items.filter(i => i.type === 'packing').length > 15 && <div className="text-gray-400 italic">...及其他 {items.filter(i => i.type === 'packing').length - 15} 項</div>}
                   </div>
                </div>
-
-               {/* 3. 緊急資訊 */}
                {CITY_DATA[currentTrip.destination]?.emergency && (
-                  <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-xs">
+                  <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-xs break-inside-avoid">
                      <h3 className="font-bold text-red-700 mb-2 uppercase flex items-center gap-2"><Siren size={12}/> 緊急聯絡</h3>
                      <div className="grid grid-cols-2 gap-2">
                         <div><span className="text-red-400">報警</span> <span className="font-bold text-red-800 block text-lg">{CITY_DATA[currentTrip.destination].emergency.police}</span></div>
@@ -513,8 +554,6 @@ function TravelApp() {
                )}
             </div>
          </div>
-
-         {/* Footer - 溫暖祝福 */}
          <div className="mt-12 pt-6 border-t-2 border-gray-100 text-center">
             <p className="text-xl font-bold text-gray-800 italic font-serif">"祝您旅途愉快，一路順風！"</p>
             <p className="text-gray-400 mt-2 text-xs uppercase tracking-widest">Created with 智能旅遊管家</p>
@@ -524,6 +563,27 @@ function TravelApp() {
   };
 
   // --- Render ---
+
+  // 特別處理: 如果是預覽模式，強制渲染報告並隱藏其他 UI (解決 iOS Safari 列印問題)
+  if (showPreviewModal) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center">
+         <div className="w-full bg-white shadow-md p-4 sticky top-0 z-50 flex justify-between items-center print:hidden">
+            <h2 className="font-bold text-gray-700 flex items-center gap-2"><Eye size={20}/> 閱讀模式</h2>
+            <div className="flex gap-2">
+               <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm active:scale-95"><Printer size={16}/> <span className="hidden sm:inline">列印 / 轉存 PDF</span></button>
+               <button onClick={()=>setShowPreviewModal(false)} className="text-gray-500 hover:bg-gray-100 p-2 rounded-lg"><X size={20}/></button>
+            </div>
+         </div>
+         <div className="w-full max-w-[210mm] bg-white shadow-xl my-8 print:shadow-none print:m-0 print:w-full">
+            <ReportTemplate />
+         </div>
+         <div className="p-4 text-center text-gray-400 text-xs print:hidden mb-8">
+            提示：iPhone 用戶請點擊「列印」後，在分享選單中選擇「列印」或「儲存到檔案」。
+         </div>
+      </div>
+    );
+  }
 
   if (view === 'dashboard') {
     return (
@@ -539,9 +599,7 @@ function TravelApp() {
             </div>
           </header>
 
-          {/* ... User Modal & Create Trip Form & Trip List (Same as before) ... */}
-          {/* 為了節省空間，這裡保留原有的 Dashboard 渲染邏輯，請參考前一版代碼，僅修改 Report 部分 */}
-          
+          {/* User Modal */}
           {showUserModal && (
              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
@@ -568,8 +626,14 @@ function TravelApp() {
                 <div className="space-y-1 relative"><label className="text-xs text-gray-500">出發地</label><div className="relative"><MapPinIcon className="absolute left-3 top-3 text-gray-400" size={16} /><input value={newTrip.origin} onChange={e=>setNewTrip({...newTrip, origin: e.target.value})} onFocus={() => setShowOriginSuggestions(true)} className="w-full pl-9 p-2 border rounded-lg bg-gray-50"/></div>{showOriginSuggestions && <div className="absolute z-10 w-full bg-white border rounded-lg shadow-xl mt-1 p-2 flex flex-wrap gap-2">{POPULAR_ORIGINS.map(c => <button type="button" key={c} onClick={() => {setNewTrip({...newTrip, origin: c}); setShowOriginSuggestions(false);}} className="text-xs bg-gray-100 px-2 py-1 rounded">{c}</button>)}<button type="button" onClick={()=>setShowOriginSuggestions(false)} className="w-full text-center text-xs text-blue-500 mt-1 pt-1 border-t">關閉</button></div>}</div>
                 <div className="space-y-1 relative"><label className="text-xs text-gray-500">目的地</label><div className="relative"><Navigation className="absolute left-3 top-3 text-blue-500" size={16} /><input placeholder="例如：東京" value={newTrip.destination} onChange={e=>setNewTrip({...newTrip, destination: e.target.value})} onFocus={() => setShowCitySuggestions(true)} className="w-full pl-9 p-2 border rounded-lg focus:ring-2 ring-blue-500 outline-none" /></div>{showCitySuggestions && <div className="absolute z-10 w-full bg-white border rounded-lg shadow-xl mt-1 p-2 grid grid-cols-4 gap-2">{POPULAR_CITIES.map(c => <button type="button" key={c} onClick={() => {setNewTrip({...newTrip, destination: c}); setShowCitySuggestions(false);}} className="text-xs border px-2 py-1 rounded hover:bg-blue-50">{c}</button>)}<button type="button" onClick={()=>setShowCitySuggestions(false)} className="col-span-4 text-center text-xs text-blue-500 mt-1 pt-1 border-t">關閉</button></div>}</div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="flex gap-2 items-center"><div className="flex-1 space-y-1"><label className="text-xs text-gray-500">開始</label><input type="date" min={new Date().toISOString().split('T')[0]} value={newTrip.startDate} onChange={e=>setNewTrip({...newTrip, startDate: e.target.value})} className="w-full p-2 border rounded-lg" required /></div><div className="flex-1 space-y-1"><label className="text-xs text-gray-500">結束</label><input type="date" min={newTrip.startDate || new Date().toISOString().split('T')[0]} value={newTrip.endDate} onChange={e=>setNewTrip({...newTrip, endDate: e.target.value})} className="w-full p-2 border rounded-lg" disabled={!newTrip.startDate} required /></div></div><div className="space-y-1"><label className="text-xs text-gray-500">旅遊目的</label><div className="flex gap-2">{[{id:'sightseeing', icon:Camera, label:'觀光'}, {id:'shopping', icon:ShoppingBag, label:'購物'}, {id:'food', icon:Utensils, label:'美食'}, {id:'adventure', icon:Mountain, label:'冒險'}].map(p => (<button type="button" key={p.id} onClick={() => setNewTrip({...newTrip, purpose: p.id})} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-lg border text-xs transition-colors ${newTrip.purpose === p.id ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-500'}`}><p.icon size={16} /> <span className="mt-1">{p.label}</span></button>))}</div></div></div>
-              {newTrip.startDate && newTrip.endDate && <div className="text-center text-xs text-blue-600 font-bold bg-blue-50 p-1 rounded mt-1">預計旅遊天數：共 {Math.max(1, Math.ceil((new Date(newTrip.endDate) - new Date(newTrip.startDate))/(1000 * 60 * 60 * 24)) + 1)} 天</div>}
+              
+              {/* 全新 Range Calendar UI */}
+              <div className="space-y-1">
+                 <label className="text-xs text-gray-500">選擇旅遊日期 (點擊開始與結束)</label>
+                 <RangeCalendar startDate={newTrip.startDate} endDate={newTrip.endDate} onChange={({startDate, endDate}) => setNewTrip({...newTrip, startDate, endDate})} />
+              </div>
+
+              <div className="space-y-1"><label className="text-xs text-gray-500">旅遊目的</label><div className="flex gap-2">{[{id:'sightseeing', icon:Camera, label:'觀光'}, {id:'shopping', icon:ShoppingBag, label:'購物'}, {id:'food', icon:Utensils, label:'美食'}, {id:'adventure', icon:Mountain, label:'冒險'}].map(p => (<button type="button" key={p.id} onClick={() => setNewTrip({...newTrip, purpose: p.id})} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-lg border text-xs transition-colors ${newTrip.purpose === p.id ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-500'}`}><p.icon size={16} /> <span className="mt-1">{p.label}</span></button>))}</div></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3"><TravelerCounter label="成人" icon={User} field="adults" value={newTrip.travelers.adults} /><TravelerCounter label="小童" icon={User} field="children" value={newTrip.travelers.children} /><TravelerCounter label="幼童" icon={Baby} field="toddlers" value={newTrip.travelers.toddlers} /><TravelerCounter label="長者" icon={Accessibility} field="elderly" value={newTrip.travelers.elderly} /></div>
               {newTrip.estimatedBudget > 0 && <div className="bg-blue-50 p-3 rounded-xl border border-blue-100"><div className="flex justify-between items-center text-sm font-bold text-blue-800"><span className="flex items-center gap-1"><Calculator size={14}/> AI 預算估算: ${newTrip.estimatedBudget.toLocaleString()}</span><span className="text-xs font-normal">({newTrip.budgetDetails.days}天)</span></div></div>}
               <button type="submit" disabled={loadingWeather} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 flex justify-center items-center gap-2">AI 生成行程</button>
@@ -589,7 +653,7 @@ function TravelApp() {
   
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col bg-white">
-      {/* 頂部 Header (列印時隱藏) */}
+      {/* 頂部 Header */}
       <div className="bg-white border-b sticky top-0 z-20 shadow-sm print:hidden">
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between py-3">
@@ -605,12 +669,9 @@ function TravelApp() {
                <button onClick={toggleTripLock} className={`p-2 rounded-full border ${currentTrip.isLocked ? 'bg-red-50 text-red-500 border-red-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`} title="鎖定/解鎖行程">
                   {currentTrip.isLocked ? <Lock size={16}/> : <Unlock size={16}/>}
                </button>
-               {/* 預覽與列印 */}
-               <button onClick={() => setShowPreviewModal(true)} className="p-2 rounded-full bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100" title="預覽報告">
-                  <Eye size={16}/>
-               </button>
-               <button onClick={handlePrint} className="p-2 rounded-full bg-gray-100 text-gray-600 border hover:bg-gray-200" title="直接列印">
-                  <Printer size={16}/>
+               {/* 強化的預覽按鈕 */}
+               <button onClick={() => setShowPreviewModal(true)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-full shadow-sm text-sm hover:bg-blue-700">
+                  <Eye size={14}/> 預覽/列印
                </button>
             </div>
           </div>
@@ -622,34 +683,9 @@ function TravelApp() {
         </div>
       </div>
 
-      {/* Report Preview Modal */}
-      {showPreviewModal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
-           <div className="bg-white rounded-lg shadow-2xl w-full max-w-[210mm] min-h-[90vh] relative flex flex-col">
-              <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-lg">
-                 <h2 className="font-bold text-gray-700 flex items-center gap-2"><Eye size={20}/> 報告預覽</h2>
-                 <div className="flex gap-2">
-                    <button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"><Printer size={16}/> 列印 / 存為 PDF</button>
-                    <button onClick={()=>setShowPreviewModal(false)} className="text-gray-500 hover:bg-gray-100 p-2 rounded-lg"><X size={20}/></button>
-                 </div>
-              </div>
-              <div className="flex-1 overflow-y-auto bg-gray-100 p-8">
-                 {/* 預覽區域 - 模擬 A4 紙 */}
-                 <div className="bg-white shadow-lg mx-auto" style={{ width: '210mm', minHeight: '297mm' }}>
-                    <ReportTemplate />
-                 </div>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* 隱藏的列印區域 (Print Only) */}
-      <div className="hidden print:block">
-         <ReportTemplate />
-      </div>
-
       <div className="flex-1 max-w-4xl mx-auto w-full p-4 space-y-6 print:hidden">
-        {/* 主要 Dashboard 內容 (打卡、列表等) */}
+        
+        {/* 打卡彈窗 */}
         {checkInModal && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
              <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
@@ -682,22 +718,35 @@ function TravelApp() {
             {Array.from({length: newTrip.budgetDetails.days || Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1}).map((_, idx) => {
                const dateStr = new Date(new Date(currentTrip.startDate).getTime() + idx * 86400000).toISOString().split('T')[0];
                const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
+               const w = weatherData[dateStr];
                
                return (
-                 <div key={dateStr} className="bg-white rounded-xl border p-4 print:border-none print:p-0 print:mb-8 break-inside-avoid">
-                    <div className="flex justify-between items-center mb-4 pb-2 border-b print:border-gray-300">
-                       <div><h3 className="font-bold text-gray-800 text-lg">Day {idx+1}</h3><div className="text-xs text-gray-400 print:text-gray-600">{dateStr}</div></div>
-                       <div className="flex gap-2 print:hidden">
-                          <button onClick={() => openGoogleMapsRoute(dateStr)} className="text-blue-500 text-xs flex items-center gap-1 border border-blue-200 px-2 py-1 rounded hover:bg-blue-50"><Map size={12}/> 路線</button>
-                          {!currentTrip.isLocked && <button onClick={() => { setNewItem({...newItem, date: dateStr, type: 'itinerary'}); window.scrollTo({top: 0, behavior: 'smooth'}); }} className="text-gray-400 hover:text-blue-500"><Plus size={16}/></button>}
+                 <div key={dateStr} className="bg-white rounded-xl border p-4">
+                    <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                       <div>
+                          <h3 className="font-bold text-gray-800 text-lg">Day {idx+1}</h3>
+                          <div className="text-xs text-gray-400">{dateStr}</div>
+                       </div>
+                       <div className="flex items-center gap-2">
+                          {/* 天氣顯示 */}
+                          {w ? (
+                             <div className="flex items-center gap-1 text-xs bg-blue-50 px-2 py-1 rounded-full text-blue-600">
+                                <w.icon size={14}/> {w.desc} {w.max}° <span className="text-blue-400 text-[10px]">☔{w.rain}%</span>
+                             </div>
+                          ) : <span className="text-xs text-gray-300">預報未出</span>}
+                          
+                          <div className="flex gap-2 print:hidden">
+                             <button onClick={() => openGoogleMapsRoute(dateStr)} className="text-blue-500 text-xs flex items-center gap-1 border border-blue-200 px-2 py-1 rounded hover:bg-blue-50"><Map size={12}/> 路線</button>
+                             {!currentTrip.isLocked && <button onClick={() => { setNewItem({...newItem, date: dateStr, type: 'itinerary'}); window.scrollTo({top: 0, behavior: 'smooth'}); }} className="text-gray-400 hover:text-blue-500"><Plus size={16}/></button>}
+                          </div>
                        </div>
                     </div>
                     {dayItems.length === 0 ? <div className="text-center text-xs text-gray-300 py-2">無行程</div> : dayItems.map(item => (
-                        <div key={item.id} className={`flex gap-3 mb-4 relative pl-4 border-l-2 ${item.isCheckIn ? 'border-l-blue-400' : 'border-l-gray-200'} print:border-l-4 print:border-gray-800`}>
+                        <div key={item.id} className={`flex gap-3 mb-4 relative pl-4 border-l-2 ${item.isCheckIn ? 'border-l-blue-400' : 'border-l-gray-200'}`}>
                            <div className="flex-1" onClick={() => !currentTrip.isLocked && editItem(item)}>
-                              <div className="flex justify-between"><span className="font-bold text-gray-800 text-sm print:text-base">{item.title}</span><span className="text-xs text-gray-400 font-mono print:text-gray-600">{item.startTime}</span></div>
-                              <div className="text-xs text-gray-500 mt-1 flex gap-2 print:text-sm">{item.duration && <span className="flex items-center gap-1"><Clock size={10}/> {item.duration}</span>}{item.cost && <span className="text-orange-500 font-bold">${item.cost}</span>}</div>
-                              {item.notes && <div className="text-xs text-gray-400 mt-1 bg-gray-50 p-1 rounded print:bg-transparent print:text-gray-600 print:italic">{item.notes}</div>}
+                              <div className="flex justify-between"><span className="font-bold text-gray-800 text-sm">{item.title}</span><span className="text-xs text-gray-400 font-mono">{item.startTime}</span></div>
+                              <div className="text-xs text-gray-500 mt-1 flex gap-2">{item.duration && <span className="flex items-center gap-1"><Clock size={10}/> {item.duration}</span>}{item.cost && <span className="text-orange-500 font-bold">${item.cost}</span>}</div>
+                              {item.notes && <div className="text-xs text-gray-400 mt-1 bg-gray-50 p-1 rounded">{item.notes}</div>}
                            </div>
                            {!currentTrip.isLocked && <button onClick={() => deleteItem(item.id)} className="text-gray-200 hover:text-red-400 self-start print:hidden"><Trash2 size={14}/></button>}
                         </div>
@@ -708,11 +757,10 @@ function TravelApp() {
           </div>
         )}
 
-        {/* 3. 行李 (列印時也顯示) */}
+        {/* 3. 行李 */}
         {activeTab === 'packing' && (
-          <div className="print:mt-8 break-before-page">
-            <h2 className="hidden print:block text-2xl font-bold mb-4 border-b pb-2 flex items-center gap-2">🧳 行李檢查清單</h2>
-            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center mb-4 print:hidden">
+          <div>
+            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center mb-4">
                <div><div className="font-bold text-indigo-800">行李總重 {luggageStats.totalWeight} kg</div><div className="text-xs text-indigo-500">建議：{luggageStats.suggestion}</div></div>
                <Briefcase size={24} className="text-indigo-300"/>
             </div>
@@ -720,21 +768,20 @@ function TravelApp() {
                 const ownerItems = items.filter(i => i.type === 'packing' && (i.itemOwner === owner || (!i.itemOwner && owner === '全體')));
                 if (ownerItems.length === 0) return null;
                 return (
-                  <div key={owner} className="bg-white p-4 rounded-xl border mb-4 print:border-none print:p-0">
-                    <h4 className="text-sm font-bold text-gray-500 mb-3 border-b pb-1 print:text-black">{owner}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-2">
+                  <div key={owner} className="bg-white p-4 rounded-xl border mb-4">
+                    <h4 className="text-sm font-bold text-gray-500 mb-3 border-b pb-1">{owner}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {ownerItems.map(item => {
                       const DefIcon = ITEM_DEFINITIONS[item.title]?.icon || Circle;
                       return (
-                        <div key={item.id} className="flex items-center gap-3 mb-2 print:mb-1">
-                           <button onClick={() => toggleItemComplete(item)} className={`print:hidden ${item.completed ? 'text-green-500' : 'text-gray-300'}`}><CheckCircle2 size={20}/></button>
-                           <div className="p-2 bg-gray-50 rounded-full text-gray-500 print:hidden"><DefIcon size={16}/></div>
-                           <span className="hidden print:inline-block w-4 h-4 border border-gray-400 mr-2"></span>
+                        <div key={item.id} className="flex items-center gap-3 mb-2">
+                           <button onClick={() => toggleItemComplete(item)} className={`${item.completed ? 'text-green-500' : 'text-gray-300'}`}><CheckCircle2 size={20}/></button>
+                           <div className="p-2 bg-gray-50 rounded-full text-gray-500"><DefIcon size={16}/></div>
                            <div className="flex-1 flex justify-between">
-                              <span className={`text-sm font-medium ${item.completed ? 'line-through text-gray-300' : 'text-gray-800'} print:no-underline print:text-black`}>{item.title}</span>
-                              <span className="text-xs bg-gray-100 px-2 py-1 rounded print:bg-transparent print:border print:border-gray-300">x{item.quantity}</span>
+                              <span className={`text-sm font-medium ${item.completed ? 'line-through text-gray-300' : 'text-gray-800'}`}>{item.title}</span>
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded">x{item.quantity}</span>
                            </div>
-                           {!currentTrip.isLocked && <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 print:hidden"><button onClick={() => updateQuantity(item, -1)} className="text-gray-400 hover:text-blue-500"><Minus size={12}/></button><button onClick={() => updateQuantity(item, 1)} className="text-gray-400 hover:text-blue-500"><Plus size={12}/></button></div>}
+                           {!currentTrip.isLocked && <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1"><button onClick={() => updateQuantity(item, -1)} className="text-gray-400 hover:text-blue-500"><Minus size={12}/></button><button onClick={() => updateQuantity(item, 1)} className="text-gray-400 hover:text-blue-500"><Plus size={12}/></button></div>}
                         </div>
                       )
                     })}
@@ -745,9 +792,9 @@ function TravelApp() {
           </div>
         )}
 
-        {/* 記帳 (列印時隱藏詳細) */}
+        {/* 記帳 */}
         {activeTab === 'budget' && (
-          <div className="space-y-4 print:hidden">
+          <div className="space-y-4">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-2xl shadow-lg">
               <div className="flex justify-between items-start">
                 <div><p className="text-emerald-100 text-xs uppercase">總支出 (HKD)</p><h2 className="text-3xl font-bold mt-1">${budgetStats.total.toLocaleString()}</h2></div>
@@ -770,9 +817,9 @@ function TravelApp() {
           </div>
         )}
 
-        {/* 資訊 (列印時隱藏) */}
+        {/* 資訊 */}
         {activeTab === 'info' && (
-           <div className="space-y-4 print:hidden">
+           <div className="space-y-4">
               <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100"><h3 className="font-bold text-yellow-800 mb-2">關於 {currentTrip.destination}</h3><p className="text-sm text-yellow-700">{CITY_DATA[currentTrip.destination]?.intro}</p></div>
               <h4 className="text-sm font-bold text-gray-500 mt-4">更多資訊 (外部連結)</h4>
               <div className="grid grid-cols-2 gap-3">
