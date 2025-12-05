@@ -4,13 +4,13 @@ import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, lin
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from "firebase/firestore";
 import { 
   Trash2, Plus, Minus, MapPin, Calendar as CalIcon, CheckCircle2, Circle, 
-  DollarSign, FileText, Sun, CloudRain, Snowflake, Cloud, Droplets, Wind,
+  DollarSign, FileText, Sun, CloudRain, Snowflake, Cloud, Droplets, 
   Luggage, Plane, Baby, Accessibility, User, Navigation,
   MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
-  ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car,
+  ExternalLink, Clock, Search, Utensils, Siren, Ambulance, Car,
   Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight,
-  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Ticket, Phone, ArrowRight, Star, BedDouble
+  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Ticket, Phone, ArrowRight
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -33,41 +33,48 @@ const APP_ID = "travel-mate-app-7ca34";
 
 // --- 3. 資料庫與常數 ---
 
-// 城市資料 (含圖片)
 const CITY_DATA = {
-  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&q=80", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi" },
-  "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1516900557549-41557d405adf?w=400&q=80", intro: "北國雪景與美食，冬季必訪大通公園雪祭。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", img: "https://images.unsplash.com/photo-1570459027562-4a916cc6113f?w=400&q=80", intro: "九州門戶，屋台文化與豚骨拉麵的發源地。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
-  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1538669716383-71cc735d4872?w=400&q=80", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
-  "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", img: "https://images.unsplash.com/photo-1596788502256-4c4f9273c3cb?w=400&q=80", intro: "海港城市，海雲台沙灘與甘川洞文化村。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
-  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", img: "https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?w=400&q=80", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688" },
-  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", img: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=400&q=80", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab" },
-  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
-  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber" },
-  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", intro: "澳洲最大城市，雪梨歌劇院與港灣大橋是世界級地標。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1510265119258-db115b0e8172?w=400&q=80", intro: "澳洲文化與咖啡之都，充滿藝術巷弄與維多利亞式建築。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1562657523-2679c2937397?w=400&q=80", intro: "陽光之城，擁有美麗的南岸公園與考拉保護區。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", img: "https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=400&q=80", intro: "衝浪者的天堂，擁有綿延的沙灘與多個主題樂園。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
-  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", img: "https://images.unsplash.com/photo-1518599801797-737c8d02e8e7?w=400&q=80", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" }
+  "東京": { lat: 35.6762, lon: 139.6503, currency: "JPY", region: "JP", intro: "傳統與未來交織的城市，必去淺草寺、澀谷十字路口。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "大阪": { lat: 34.6937, lon: 135.5023, currency: "JPY", region: "JP", intro: "美食之都，道頓堀固力果跑跑人是必打卡點。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "京都": { lat: 35.0116, lon: 135.7681, currency: "JPY", region: "JP", intro: "千年古都，擁有無數神社與寺廟，清水寺最為著名。", emergency: { police: "110", ambulance: "119" }, rideApp: "MK Taxi" },
+  "札幌": { lat: 43.0618, lon: 141.3545, currency: "JPY", region: "JP", intro: "北國雪景與美食，冬季必訪大通公園雪祭。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "福岡": { lat: 33.5902, lon: 130.4017, currency: "JPY", region: "JP", intro: "九州門戶，屋台文化與豚骨拉麵的發源地。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / GO" },
+  "首爾": { lat: 37.5665, lon: 126.9780, currency: "KRW", region: "KR", intro: "韓流中心，弘大購物與景福宮穿韓服體驗。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
+  "釜山": { lat: 35.1796, lon: 129.0756, currency: "KRW", region: "KR", intro: "海港城市，海雲台沙灘與甘川洞文化村。", emergency: { police: "112", ambulance: "119" }, rideApp: "Kakao T" },
+  "台北": { lat: 25.0330, lon: 121.5654, currency: "TWD", region: "TW", intro: "美食與夜市的天堂，必登台北101觀景台。", emergency: { police: "110", ambulance: "119" }, rideApp: "Uber / 55688" },
+  "曼谷": { lat: 13.7563, lon: 100.5018, currency: "THB", region: "TH", intro: "充滿活力的不夜城，大皇宮與水上市場不可錯過。", emergency: { police: "191", ambulance: "1669" }, rideApp: "Grab" },
+  "倫敦": { lat: 51.5074, lon: -0.1278, currency: "GBP", region: "UK", intro: "歷史與現代的融合，大笨鐘與倫敦眼是必訪之地。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
+  "巴黎": { lat: 48.8566, lon: 2.3522, currency: "EUR", region: "EU", intro: "浪漫之都，艾菲爾鐵塔下野餐是最佳體驗。", emergency: { police: "17", ambulance: "15" }, rideApp: "Uber" },
+  "香港": { lat: 22.3193, lon: 114.1694, currency: "HKD", region: "HK", intro: "東方之珠，維多利亞港夜景世界三大夜景之一。", emergency: { police: "999", ambulance: "999" }, rideApp: "Uber" },
+  "雪梨": { lat: -33.8688, lon: 151.2093, currency: "AUD", region: "AU", intro: "澳洲最大城市，雪梨歌劇院與港灣大橋是世界級地標。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  "墨爾本": { lat: -37.8136, lon: 144.9631, currency: "AUD", region: "AU", intro: "澳洲文化與咖啡之都，充滿藝術巷弄與維多利亞式建築。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  "布里斯本": { lat: -27.4705, lon: 153.0260, currency: "AUD", region: "AU", intro: "陽光之城，擁有美麗的南岸公園與考拉保護區。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
+  "黃金海岸": { lat: -28.0167, lon: 153.4000, currency: "AUD", region: "AU", intro: "衝浪者的天堂，擁有綿延的沙灘與多個主題樂園。", emergency: { police: "000", ambulance: "000" }, rideApp: "Uber" },
 };
+
 const POPULAR_CITIES = Object.keys(CITY_DATA);
 const POPULAR_ORIGINS = ["香港", "台北", "高雄", "澳門", "東京", "倫敦", "紐約", "雪梨", "墨爾本"];
-
 const EXCHANGE_RATES = { "HKD": 1, "JPY": 0.052, "KRW": 0.0058, "TWD": 0.25, "THB": 0.22, "SGD": 5.8, "GBP": 9.9, "EUR": 8.5, "USD": 7.8, "CNY": 1.1, "AUD": 5.1 };
 
-// AI 預算與行李參數
+// AI 預算參數
 const PURPOSE_MULTIPLIERS = {
-  "sightseeing": { flight: 1, hotel: 1, food: 1, transport: 1.2, shopping: 2000, label: "觀光打卡", icon: Camera, desc: "輕鬆遊覽名勝古蹟" }, 
-  "shopping": { flight: 1, hotel: 1, food: 0.8, transport: 1, shopping: 8000, label: "購物血拼", icon: ShoppingBag, desc: "Outlet與百貨巡禮" }, 
-  "food": { flight: 1, hotel: 1, food: 2.0, transport: 1, shopping: 2000, label: "美食巡禮", icon: Utensils, desc: "米其林與在地小吃" }, 
-  "adventure": { flight: 1, hotel: 1.2, food: 1, transport: 1.5, shopping: 1000, label: "冒險體驗", icon: Mountain, desc: "主題樂園與戶外" } 
+  "sightseeing": { flight: 1, hotel: 1, food: 1, transport: 1.2, shopping: 2000 }, 
+  "shopping": { flight: 1, hotel: 1, food: 0.8, transport: 1, shopping: 8000 }, 
+  "food": { flight: 1, hotel: 1, food: 2.0, transport: 1, shopping: 2000 }, 
+  "adventure": { flight: 1, hotel: 1.2, food: 1, transport: 1.5, shopping: 1000 } 
 };
 
-const FLIGHT_COSTS = { "JP": { direct: 5000, transfer: 3500 }, "UK": { direct: 10000, transfer: 7000 }, "AU": { direct: 8000, transfer: 6000 }, "default": { direct: 6000, transfer: 4000 } };
-const HOTEL_COSTS = { "5star": 3000, "4star": 1500, "3star": 800, "homestay": 600, "hostel": 300 };
-const HOTEL_LABELS = { "5star": "五星級奢華", "4star": "四星級舒適", "3star": "三星級經濟", "homestay": "民宿/Airbnb", "hostel": "青年旅館" };
+const FLIGHT_COSTS = {
+  "JP": { direct: 5000, transfer: 3500 },
+  "UK": { direct: 10000, transfer: 7000 },
+  "AU": { direct: 8000, transfer: 6000 },
+  "default": { direct: 6000, transfer: 4000 }
+};
+
+const HOTEL_COSTS = {
+  "5star": 3000, "4star": 1500, "3star": 800, "homestay": 600, "hostel": 300
+};
+
 const BASE_COSTS = { "JP": { food: 400, transport: 150 }, "AU": { food: 500, transport: 150 }, "default": { food: 400, transport: 150 } };
 
 const ITEM_DEFINITIONS = {
@@ -90,7 +97,6 @@ const POI_DB = {
   "東京": [{ name: "東京迪士尼", category: "transport", cost: 600, time: "全日", note: "夢幻王國", lat: 35.6329, lon: 139.8804, img: "https://images.unsplash.com/photo-1545582379-34e8ce6a3092?w=400&q=80", desc: "亞洲第一座迪士尼樂園。" }, { name: "淺草寺", category: "transport", cost: 0, time: "2h", note: "雷門打卡", lat: 35.7147, lon: 139.7967, img: "https://images.unsplash.com/photo-1596395914619-338d9b52c007?w=400&q=80", desc: "東京最古老的寺廟。" }, { name: "東京晴空塔", category: "transport", cost: 200, time: "2h", note: "俯瞰東京全景", lat: 35.7100, lon: 139.8107, img: "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?w=400&q=80", desc: "世界最高的自立式電波塔。" }, { name: "築地場外市場", category: "food", cost: 300, time: "2h", note: "新鮮壽司", lat: 35.6655, lon: 139.7707, img: "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&q=80", desc: "東京的廚房。" }],
   "大阪": [{ name: "環球影城", category: "transport", cost: 650, time: "全日", note: "任天堂世界", lat: 34.6654, lon: 135.4323, img: "https://images.unsplash.com/photo-1623941000802-38fadd7f7b3b?w=400&q=80", desc: "世界級主題樂園。" }, { name: "道頓堀", category: "food", cost: 200, time: "3h", note: "美食吃到飽", lat: 34.6687, lon: 135.5013, img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", desc: "大阪美食心臟。" }],
   "雪梨": [{ name: "雪梨歌劇院", category: "transport", cost: 200, time: "2h", note: "世界遺產", lat: -33.8568, lon: 151.2153, img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", desc: "經典地標。" }, { name: "邦迪海灘", category: "transport", cost: 0, time: "3h", note: "衝浪", lat: -33.8915, lon: 151.2767, img: "https://images.unsplash.com/photo-1523428098666-1a6a90e96033?w=400&q=80", desc: "澳洲最著名海灘。" }],
-  "墨爾本": [{ name: "普芬比利蒸汽火車", category: "transport", cost: 400, time: "4h", note: "穿越森林", lat: -37.9069, lon: 145.3533, img: "https://images.unsplash.com/photo-1621045239999-ad47742d4757?w=400&q=80", desc: "古老蒸汽火車。" }, { name: "維多利亞女王市場", category: "food", cost: 100, time: "2h", note: "美食天堂", lat: -37.8076, lon: 144.9568, img: "https://images.unsplash.com/photo-1545652634-9279dc69116e?w=400&q=80", desc: "南半球最大市集。" }],
   "default": [{ name: "市中心地標", category: "transport", cost: 0, time: "1h", note: "打卡點", lat: 0, lon: 0, img: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80", desc: "城市中心。" }]
 };
 
@@ -200,9 +206,7 @@ const fetchDailyWeather = async (lat, lon, startStr, endStr) => {
 
 function TravelApp() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('dashboard'); // 'dashboard', 'create-trip', 'trip-detail'
-  const [step, setStep] = useState(0); // Wizard Step
-  
+  const [view, setView] = useState('dashboard'); 
   const [currentTrip, setCurrentTrip] = useState(null);
   const [trips, setTrips] = useState([]);
   const [items, setItems] = useState([]);
@@ -313,45 +317,21 @@ function TravelApp() {
         await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId: currentTrip.id, type: 'people', title: newItem.pName, notes: `房號: ${newItem.pRoom}`, pId: newItem.pId, pPhone: newItem.pPhone, completed: false, createdAt: serverTimestamp() });
         setNewItem({...newItem, pName:'', pId:'', pPhone:'', pRoom:''}); return showToast("人員已新增", "success");
     }
-    let finalNotes = newItem.notes; 
-    if (newItem.foreignCost && newItem.currency !== 'HKD') finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${finalNotes}`;
-    
-    // FIX: Ensure numeric fields are never undefined
-    const payload = { 
-        ...newItem, 
-        notes: finalNotes, 
-        weight: Number(newItem.weight) || 0, 
-        volume: Number(newItem.volume) || 0, 
-        cost: Number(newItem.cost) || 0,
-        tripId: currentTrip.id, 
-        completed: false, 
-        createdAt: serverTimestamp() 
-    };
-
+    let finalNotes = newItem.notes; if (newItem.foreignCost && newItem.currency !== 'HKD') finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${finalNotes}`;
+    const payload = { ...newItem, notes: finalNotes, weight: Number(newItem.weight) || 0, volume: Number(newItem.volume) || 0, cost: Number(newItem.cost) || 0, tripId: currentTrip.id, completed: false, createdAt: serverTimestamp() };
     if (editingItem) { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', editingItem), payload); setEditingItem(null); } 
     else { await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), payload); }
-    
-    setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '', quantity: 1, weight: 0, startTime: '', duration: '' }); 
-    setCheckInModal(false); setShowSpotSelector(false);
-    showToast("項目已新增", "success");
+    if (newItem.cost || newItem.type === 'budget') setTimeout(() => updateTripActualCost(currentTrip.id), 500);
+    setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '', quantity: 1, weight: 0, startTime: '', duration: '' }); setCheckInModal(false); setShowSpotSelector(false); showToast("項目已新增", "success");
   };
 
   const handleCheckIn = () => {
-    if (currentTrip.isLocked) return showToast("已鎖定", "error");
-    if (!navigator.geolocation) return showToast("不支援定位", "error");
+    if (currentTrip.isLocked) return showToast("已鎖定", "error"); if (!navigator.geolocation) return showToast("不支援定位", "error");
     navigator.geolocation.getCurrentPosition((pos) => {
-       const { latitude, longitude } = pos.coords;
-       const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-       
-       // Proximity Logic
-       const citySpots = POI_DB[currentTrip.destination] || [];
-       let nearbySpot = null; let minDistance = 5; 
+       const { latitude, longitude } = pos.coords; const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+       const citySpots = POI_DB[currentTrip.destination] || []; let nearbySpot = null; let minDistance = 5; 
        citySpots.forEach(spot => { if (spot.lat && spot.lon) { const d = calculateDistance(latitude, longitude, spot.lat, spot.lon); if (d < minDistance) { minDistance = d; nearbySpot = spot; } } });
-       setNewItem(prev => ({ 
-         ...prev, type: 'itinerary', title: nearbySpot ? `📍 打卡: ${nearbySpot.name} (附近)` : `📍 打卡 (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`, 
-         date: new Date().toISOString().split('T')[0], startTime: t, notes: nearbySpot ? `位於 ${nearbySpot.name} 附近` : '', cost: nearbySpot ? nearbySpot.cost : '', category: 'transport', isCheckIn: true 
-       }));
-       setCheckInModal(true);
+       setNewItem(prev => ({ ...prev, type: 'itinerary', title: nearbySpot ? `📍 打卡: ${nearbySpot.name}` : `📍 打卡`, date: new Date().toISOString().split('T')[0], startTime: t, notes: nearbySpot ? `附近: ${nearbySpot.name}` : '', cost: '', category: 'transport', isCheckIn: true })); setCheckInModal(true);
     }, () => showToast("定位失敗", "error"));
   };
   
@@ -385,6 +365,9 @@ function TravelApp() {
   );
 
   const ReportTemplate = () => {
+    // Safety check for currentTrip to prevent crash if null during render
+    if (!currentTrip) return null;
+    
     const dayDiff = Math.max(1, Math.ceil((new Date(currentTrip.endDate) - new Date(currentTrip.startDate))/(86400000))+1);
     const dateArray = Array.from({length: dayDiff}).map((_, i) => new Date(new Date(currentTrip.startDate).getTime() + i * 86400000).toISOString().split('T')[0]);
     return (
@@ -412,7 +395,6 @@ function TravelApp() {
             </div>
             <div className="w-[35%] space-y-8">
                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 break-inside-avoid"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-sm uppercase"><Calculator size={14}/> 財務概況</h3><div className="space-y-2 text-sm"><div className="flex justify-between"><span>總預算</span><span className="font-bold">${currentTrip.estimatedBudget?.toLocaleString()}</span></div><div className="flex justify-between text-blue-600"><span>預計支出</span><span className="font-bold">${budgetStats.total.toLocaleString()}</span></div></div></div>
-               {/* Report: People List */}
                <div className="break-inside-avoid">
                   <h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Users size={14}/> 同行人員</h3>
                   <div className="text-xs text-gray-600 space-y-2">
@@ -485,6 +467,112 @@ function TravelApp() {
       </div>
     );
   }
+
+  // Wizard / Dashboard View
+  if (view === 'create-trip') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        <div className="bg-white p-4 shadow-sm flex items-center justify-between"><button onClick={() => setView('dashboard')} className="text-gray-500 hover:bg-gray-100 p-2 rounded-full"><ArrowRight size={20} className="rotate-180"/></button><div className="font-bold text-lg">規劃新旅程</div><div className="w-10"></div></div>
+        <div className="flex-1 overflow-y-auto p-6 max-w-2xl mx-auto w-full space-y-8">
+            
+            {/* Step 1: Location */}
+            {step === 0 && (
+                <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-gray-800">您想去哪裡探險？</h2>
+                    <div><label className="text-sm font-bold text-gray-500 mb-2 block">出發地</label><div className="flex flex-wrap gap-2">{POPULAR_ORIGINS.map(c=><button key={c} onClick={()=>setNewTrip({...newTrip, origin:c})} className={`px-4 py-2 rounded-full text-sm transition-all ${newTrip.origin===c?'bg-blue-600 text-white shadow-md':'bg-white border hover:bg-gray-50'}`}>{c}</button>)}</div></div>
+                    <div>
+                        <label className="text-sm font-bold text-gray-500 mb-3 block">熱門目的地</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            {POPULAR_CITIES.map(city => (
+                                <div key={city} onClick={()=>{setNewTrip({...newTrip, destination:city}); setStep(1)}} className="relative h-32 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-lg transition-all">
+                                    <img src={CITY_DATA[city].img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-3"><span className="text-white font-bold text-lg">{city}</span><span className="text-white/80 text-xs">{CITY_DATA[city].region}</span></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Step 2: Date */}
+            {step === 1 && (
+                <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-gray-800">什麼時候出發？</h2>
+                    <div className="flex justify-center"><RangeCalendar startDate={newTrip.startDate} endDate={newTrip.endDate} onChange={({startDate, endDate}) => setNewTrip({...newTrip, startDate, endDate})} /></div>
+                    {newTrip.startDate && newTrip.endDate && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-center font-bold text-sm">共 {Math.max(1, Math.ceil((new Date(newTrip.endDate) - new Date(newTrip.startDate))/(1000 * 60 * 60 * 24)) + 1)} 天</div>}
+                    <div className="flex justify-between pt-4"><button onClick={()=>setStep(0)} className="text-gray-500">上一步</button><button onClick={()=>{if(newTrip.startDate && newTrip.endDate) setStep(2); else showToast("請選擇日期", "error")}} className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">下一步</button></div>
+                </div>
+            )}
+
+            {/* Step 3: Logistics */}
+            {step === 2 && (
+                <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-gray-800">交通與住宿偏好</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-sm text-gray-500 font-bold mb-2 block">機票選擇</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                {['direct', 'transfer'].map(t => (
+                                    <div key={t} onClick={()=>setNewTrip({...newTrip, flightType:t})} className={`p-4 rounded-xl border-2 cursor-pointer flex flex-col items-center gap-2 transition-all ${newTrip.flightType===t?'border-blue-500 bg-blue-50 text-blue-700':'border-gray-100 hover:border-blue-200'}`}>
+                                        <Plane size={24} className={newTrip.flightType===t?'text-blue-500':'text-gray-400'}/>
+                                        <span className="font-bold">{t==='direct'?'直航':'轉機'}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm text-gray-500 font-bold mb-2 block">住宿等級</label>
+                            <div className="space-y-2">
+                                {Object.entries(HOTEL_LABELS).map(([key, label]) => (
+                                    <div key={key} onClick={()=>setNewTrip({...newTrip, hotelType:key})} className={`p-3 rounded-xl border cursor-pointer flex justify-between items-center transition-all ${newTrip.hotelType===key?'border-blue-500 bg-blue-50':'border-gray-100 hover:bg-gray-50'}`}>
+                                        <div className="flex items-center gap-3"><div className={`p-2 rounded-full ${newTrip.hotelType===key?'bg-blue-200':'bg-gray-100'}`}><BedDouble size={16}/></div><span className="text-sm font-bold">{label}</span></div>
+                                        {newTrip.hotelType===key && <CheckCircle2 size={18} className="text-blue-500"/>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-between pt-4"><button onClick={()=>setStep(1)} className="text-gray-500">上一步</button><button onClick={()=>setStep(3)} className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">下一步</button></div>
+                </div>
+            )}
+
+            {/* Step 4: Purpose & People */}
+            {step === 3 && (
+                <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-gray-800">最後確認細節</h2>
+                    <div>
+                        <label className="text-sm text-gray-500 font-bold mb-2 block">旅遊目的 (AI 規劃依據)</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {Object.entries(PURPOSE_MULTIPLIERS).map(([key, info]) => (
+                                <div key={key} onClick={()=>setNewTrip({...newTrip, purpose:key})} className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${newTrip.purpose===key?'border-orange-400 bg-orange-50':'border-gray-100 hover:bg-gray-50'}`}>
+                                    <div className="flex items-center gap-2 mb-1"><info.icon size={18} className={newTrip.purpose===key?'text-orange-500':'text-gray-400'}/><span className="font-bold text-sm">{info.label}</span></div>
+                                    <p className="text-xs text-gray-500">{info.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-500 font-bold mb-2 block">同行人員</label>
+                        <div className="space-y-2">
+                            <TravelerCounter label="成人" icon={User} field="adults" value={newTrip.travelers.adults}/>
+                            <TravelerCounter label="小童 (6-12)" icon={User} field="children" value={newTrip.travelers.children}/>
+                            <TravelerCounter label="幼童 (0-5)" icon={Baby} field="toddlers" value={newTrip.travelers.toddlers}/>
+                            <TravelerCounter label="長者" icon={Accessibility} field="elderly" value={newTrip.travelers.elderly}/>
+                        </div>
+                    </div>
+                    {newTrip.estimatedBudget > 0 && <div className="bg-green-50 p-4 rounded-xl border border-green-200 flex items-center gap-3 animate-pulse"><Calculator size={24} className="text-green-600"/><div className="flex-1"><div className="text-xs text-green-600 font-bold uppercase">AI 預估總預算</div><div className="text-xl font-bold text-green-800">${newTrip.estimatedBudget.toLocaleString()}</div></div></div>}
+                    <div className="flex justify-between pt-4"><button onClick={()=>setStep(2)} className="text-gray-500">上一步</button><button onClick={createTrip} disabled={loadingWeather} className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2">{loadingWeather ? '生成中...' : '✨ 生成行程'}</button></div>
+                </div>
+            )}
+
+        </div>
+      </div>
+    );
+  }
+
+  // Guard: If not dashboard and currentTrip is missing (e.g. refresh), go back
+  if (!currentTrip) { setView('dashboard'); return null; }
 
   // Trip Detail View
   const tripItems = items.filter(i => i.type === activeTab);
