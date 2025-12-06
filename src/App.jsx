@@ -1,88 +1,144 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Map, Calendar, CreditCard, CheckSquare, 
   Plane, Hotel, Coffee, Camera, Utensils, 
-  Plus, Trash2, ChevronRight, User, Settings,
+  Plus, Trash2, User, Settings,
   MapPin, DollarSign, PieChart as PieChartIcon,
-  Briefcase, Sparkles, Moon, Sun, CloudRain,
-  ArrowRight, Users, Star, ArrowLeft, Home
+  Briefcase, Sparkles, Sun, CloudRain,
+  ArrowRight, Users, Star, Home, Printer, Phone,
+  Ambulance, Car, Save, Edit3, X, FileText
 } from 'lucide-react';
 
-// --- 模擬 AI 生成的數據 ---
+// --- 資料結構定義 ---
 
-const MOCK_DESTINATIONS = [
-  { id: 'kyoto', name: '日本 京都 (Kyoto)', image: 'from-rose-400 to-orange-300', currency: 'JPY' },
-  { id: 'paris', name: '法國 巴黎 (Paris)', image: 'from-blue-400 to-purple-300', currency: 'EUR' },
-  { id: 'iceland', name: '冰島 (Iceland)', image: 'from-cyan-500 to-blue-600', currency: 'ISK' },
-];
-
-// 模擬生成的行程數據
-const GENERATED_TRIP_DATA = {
-  destination: "日本 京都",
-  dates: "2025年 10月 15日 - 10月 20日 (6天)",
-  weather: "晴朗 / 18°C",
-  totalBudget: 85000, // TWD
-  spent: 0,
-  travelers: 2,
-  theme: "文化深度遊",
-  flightType: "直航 (Direct)",
-  hotelLevel: "4星級溫泉旅館",
+type Traveler = {
+  id: string;
+  name: string;
+  docId: string; // 證件號碼
+  phone: string;
+  room?: string;
 };
 
-const GENERATED_ITINERARY = [
-  {
-    day: 1,
-    date: "10月 15日 (三)",
-    weather: "sunny",
-    title: "抵達與初探古都",
-    activities: [
-      { id: 1, type: 'flight', time: "10:00", title: "搭乘星宇航空直飛 KIX", loc: "桃園機場 T2", icon: Plane, tag: "直航" },
-      { id: 2, type: 'transport', time: "14:30", title: "搭乘 Haruka 特急列車", loc: "關西機場 -> 京都", icon: Map, tag: "交通券" },
-      { id: 3, type: 'hotel', time: "16:00", title: "入住 嵐山溫泉旅館", loc: "嵐山渡月橋畔", icon: Hotel, tag: "4星級" },
-      { id: 4, type: 'photo', time: "17:30", title: "渡月橋夕陽攝影", loc: "嵐山", icon: Camera, tag: "必拍打卡點" },
-    ]
+type Activity = {
+  id: string;
+  type: 'flight' | 'transport' | 'hotel' | 'sightseeing' | 'food' | 'photo' | 'other';
+  time: string;
+  title: string;
+  loc: string;
+  tag: string;
+};
+
+type DayPlan = {
+  day: number;
+  date: string;
+  weather: 'sunny' | 'cloudy' | 'rain';
+  title: string;
+  emergency: {
+    police: string;
+    ambulance: string;
+    apps: string[];
+  };
+  activities: Activity[];
+};
+
+type PackingItem = {
+  id: string;
+  item: string;
+  checked: boolean;
+  quantity: string;
+};
+
+type TripData = {
+  id: string;
+  status: 'draft' | 'planned';
+  destination: Destination;
+  origin: string;
+  dateRange: { start: number; end: number; month: number; year: number };
+  duration: number; // days
+  travelers: Traveler[];
+  budget: {
+    total: number;
+    spent: number;
+    breakdown: { name: string; value: number; color: string }[];
+  };
+  itinerary: DayPlan[];
+  packingList: Record<string, PackingItem[]>;
+  preferences: {
+    flight: string;
+    hotel: string;
+    purpose: string;
+  };
+};
+
+type Destination = {
+  id: string;
+  name: string;
+  image: string;
+  currency: string;
+  emergency: { police: string; ambulance: string; apps: string[] };
+};
+
+// --- Mock Data ---
+
+const MOCK_DESTINATIONS: Destination[] = [
+  { 
+    id: 'kyoto', name: '日本 京都 (Kyoto)', image: 'from-rose-400 to-orange-300', currency: 'JPY',
+    emergency: { police: '110', ambulance: '119', apps: ['GO', 'Uber', 'JapanTaxi'] }
   },
-  {
-    day: 2,
-    date: "10月 16日 (四)",
-    weather: "cloudy",
-    title: "千本鳥居與歷史巡禮",
-    activities: [
-      { id: 5, type: 'sightseeing', time: "08:00", title: "伏見稻荷大社", loc: "伏見", icon: Camera, tag: "避開人潮" },
-      { id: 6, type: 'food', time: "12:00", title: "鰻魚飯老店午餐", loc: "祇園", icon: Utensils, tag: "米其林推薦" },
-      { id: 7, type: 'sightseeing', time: "14:00", title: "清水寺參拜", loc: "清水坂", icon: MapPin, tag: "世界遺產" },
-    ]
-  }
+  { 
+    id: 'bangkok', name: '泰國 曼谷 (Bangkok)', image: 'from-orange-400 to-yellow-500', currency: 'THB',
+    emergency: { police: '191', ambulance: '1669', apps: ['Grab', 'Bolt'] }
+  },
+  { 
+    id: 'paris', name: '法國 巴黎 (Paris)', image: 'from-blue-400 to-purple-300', currency: 'EUR',
+    emergency: { police: '17', ambulance: '15', apps: ['Uber', 'G7', 'Bolt'] }
+  },
+  { 
+    id: 'seoul', name: '韓國 首爾 (Seoul)', image: 'from-indigo-400 to-blue-500', currency: 'KRW',
+    emergency: { police: '112', ambulance: '119', apps: ['Kakao T', 'Uber'] }
+  },
 ];
 
-const GENERATED_BUDGET = [
-  { name: "機票交通 (行)", value: 25000, color: "#60A5FA" }, // Blue
-  { name: "住宿飯店 (住)", value: 30000, color: "#F472B6" }, // Pink
-  { name: "餐飲美食 (食)", value: 15000, color: "#34D399" }, // Green
-  { name: "購物服飾 (衣)", value: 10000, color: "#FBBF24" }, // Yellow
-  { name: "門票雜支 (育樂)", value: 5000, color: "#A78BFA" }, // Purple
-];
+const POPULAR_ORIGINS = ["台北 (TPE)", "高雄 (KHH)", "香港 (HKG)", "東京 (NRT)"];
 
-const GENERATED_PACKING = {
-  "隨身證件/貴重物品": [
-    { id: 'p1', item: "護照 (有效期6個月以上)", checked: true, quantity: "2本" },
-    { id: 'p2', item: "日幣現金 / 信用卡", checked: false, quantity: "準備 ¥100,000" },
-    { id: 'p3', item: "網卡 / WiFi機", checked: false, quantity: "1台" },
+const INITIAL_PACKING_TEMPLATE = {
+  "隨身證件": [
+    { id: 'p1', item: "護照", checked: false, quantity: "每人1本" },
+    { id: 'p2', item: "現金/信用卡", checked: false, quantity: "適量" },
   ],
-  "衣物 (根據 18°C 天氣)": [
-    { id: 'c1', item: "薄外套/風衣", checked: false, quantity: "2件" },
-    { id: 'c2', item: "好走的布鞋", checked: false, quantity: "1雙" },
-    { id: 'c3', item: "換洗衣物", checked: false, quantity: "4套" },
+  "衣物": [
+    { id: 'c1', item: "換洗衣物", checked: false, quantity: "依天數" },
+    { id: 'c2', item: "好走的鞋", checked: false, quantity: "1雙" },
   ],
-  "電子/攝影": [
-    { id: 't1', item: "行動電源 (需隨身帶)", checked: true, quantity: "2顆" },
-    { id: 't2', item: "相機 & 記憶卡", checked: false, quantity: "1組" },
-    { id: 't3', item: "萬用轉接頭", checked: false, quantity: "1個" },
+  "電子": [
+    { id: 'e1', item: "行動電源", checked: false, quantity: "1個" },
+    { id: 'e2', item: "轉接頭", checked: false, quantity: "1個" },
   ]
 };
 
-// --- Helper for Custom Donut Chart ---
-const DonutChart = ({ data, total }) => {
+// --- Helper Functions ---
+
+const generateMockItinerary = (days: number, dest: Destination): DayPlan[] => {
+  return Array.from({ length: days }, (_, i) => ({
+    day: i + 1,
+    date: `Day ${i + 1}`,
+    weather: i % 3 === 0 ? 'sunny' : 'cloudy',
+    title: i === 0 ? "抵達與安頓" : i === days - 1 ? "購買伴手禮與返程" : "城市探索與文化體驗",
+    emergency: dest.emergency,
+    activities: [
+      { id: `d${i}-1`, type: 'food', time: '09:00', title: '飯店早餐', loc: '飯店餐廳', tag: '早餐' },
+      { id: `d${i}-2`, type: 'sightseeing', time: '10:30', title: `${dest.name} 著名景點 ${i+1}`, loc: '市中心', tag: '觀光' },
+      { id: `d${i}-3`, type: 'food', time: '12:30', title: '當地特色午餐', loc: '必比登推薦', tag: '午餐' },
+      ...(i === 0 ? [{ id: `d${i}-arrival`, type: 'flight', time: '15:00', title: '辦理入住', loc: '市區飯店', tag: 'Check-in' } as Activity] : []),
+      { id: `d${i}-4`, type: 'photo', time: '16:00', title: '網美打卡點', loc: '舊城區', tag: '攝影' },
+      { id: `d${i}-5`, type: 'food', time: '19:00', title: '精緻晚餐', loc: '景觀餐廳', tag: '晚餐' },
+    ]
+  }));
+};
+
+// --- Components ---
+
+const DonutChart = ({ data, total }: { data: any[], total: number }) => {
   let accumulatedDeg = 0;
   const gradients = data.map((item) => {
     const deg = (item.value / total) * 360;
@@ -96,39 +152,52 @@ const DonutChart = ({ data, total }) => {
     borderRadius: '50%',
     width: '100%',
     height: '100%',
-    position: 'relative',
   };
 
   return (
-    <div className="relative w-64 h-64 mx-auto">
-      <div style={conicStyle} className="shadow-xl"></div>
-      {/* Inner White Circle to make it a donut */}
-      <div className="absolute inset-0 m-auto w-40 h-40 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-        <span className="text-gray-400 text-sm font-medium">總預算</span>
-        <span className="text-xl font-bold text-gray-800">${total.toLocaleString()}</span>
+    <div className="relative w-48 h-48 mx-auto">
+      <div style={conicStyle} className="shadow-lg"></div>
+      <div className="absolute inset-0 m-auto w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+        <span className="text-gray-400 text-xs font-medium">總預算</span>
+        <span className="text-lg font-bold text-gray-800">${total.toLocaleString()}</span>
       </div>
     </div>
   );
 };
 
-// --- Custom Calendar Component ---
-const CustomCalendar = ({ onSelectDates }) => {
-  // Mock Calendar for October 2025
+const CustomCalendar = ({ selectedRange, onSelectRange }: { selectedRange: number[], onSelectRange: (range: number[]) => void }) => {
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-  
-  // Starting day of week for Oct 1st 2025 (Mock: Wednesday)
-  const startDay = 3; 
+  const startDay = 3; // Mock Oct 1st is Wed
 
-  const [selectedRange, setSelectedRange] = useState([15, 20]);
+  const handleDayClick = (day: number) => {
+    if (selectedRange.length === 0 || selectedRange.length === 2) {
+      onSelectRange([day]); // Start new range
+    } else {
+      const start = selectedRange[0];
+      if (day < start) {
+        onSelectRange([day, start]);
+      } else {
+        onSelectRange([start, day]);
+      }
+    }
+  };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm select-none">
       <div className="flex justify-between items-center mb-4">
         <h4 className="font-bold text-gray-800 flex items-center gap-2">
           <Calendar size={18} className="text-rose-500"/> 2025年 10月
         </h4>
-        <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">農曆 乙巳年</div>
+        <button 
+          onClick={() => {
+            const today = 15; // Mock today
+            onSelectRange([today, today]);
+          }}
+          className="text-xs bg-rose-100 text-rose-600 px-3 py-1 rounded-full hover:bg-rose-200 transition-colors"
+        >
+          今天
+        </button>
       </div>
       
       <div className="grid grid-cols-7 gap-1 mb-2">
@@ -140,300 +209,351 @@ const CustomCalendar = ({ onSelectDates }) => {
       <div className="grid grid-cols-7 gap-1">
         {Array.from({ length: startDay }).map((_, i) => <div key={`empty-${i}`} />)}
         {days.map(day => {
-          const isSelected = day >= selectedRange[0] && day <= selectedRange[1];
-          const isStart = day === selectedRange[0];
-          const isEnd = day === selectedRange[1];
-          const isToday = day === 6; // Mock Today
+          let isSelected = false;
+          let isRange = false;
           
+          if (selectedRange.length === 1) {
+            isSelected = day === selectedRange[0];
+          } else if (selectedRange.length === 2) {
+            isSelected = day === selectedRange[0] || day === selectedRange[1];
+            isRange = day > selectedRange[0] && day < selectedRange[1];
+          }
+
           let subText = "";
-          if (day === 1) subText = "初九";
-          if (day === 15) subText = "廿三";
-          if (day === 6) subText = "中秋"; // Mock holiday example
+          if (day === 6) subText = "中秋"; 
 
           return (
             <button 
               key={day}
-              onClick={() => setSelectedRange([day, Math.min(day + 5, 31)])}
+              onClick={() => handleDayClick(day)}
               className={`
-                h-14 rounded-lg flex flex-col items-center justify-center relative border transition-all
-                ${isSelected ? 'bg-rose-500 text-white border-rose-600 shadow-md transform scale-105 z-10' : 'bg-gray-50 text-gray-700 border-gray-100 hover:border-rose-300'}
-                ${isToday && !isSelected ? 'ring-2 ring-rose-400 ring-offset-2' : ''}
+                h-12 rounded-lg flex flex-col items-center justify-center relative border transition-all
+                ${isSelected ? 'bg-rose-500 text-white border-rose-600 shadow-md z-10' : ''}
+                ${isRange ? 'bg-rose-50 border-rose-100 text-rose-800' : ''}
+                ${!isSelected && !isRange ? 'bg-white text-gray-700 border-gray-100 hover:border-rose-300' : ''}
               `}
             >
-              {isToday && <span className="absolute -top-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span></span>}
               <span className="text-sm font-bold">{day}</span>
-              <span className={`text-[10px] ${isSelected ? 'text-rose-100' : 'text-gray-400'}`}>
+              <span className={`text-[9px] ${isSelected ? 'text-rose-100' : 'text-gray-400'}`}>
                 {subText || "平日"}
               </span>
             </button>
           );
         })}
       </div>
-      <p className="text-xs text-center text-gray-400 mt-3">已選擇: 10月{selectedRange[0]}日 - 10月{selectedRange[1]}日 (共 {selectedRange[1] - selectedRange[0] + 1} 天)</p>
     </div>
   );
 };
 
-// --- Main App Component ---
+// --- Main App ---
 
-export default function TravelAIPlanner() {
-  const [appState, setAppState] = useState('onboarding'); // 'onboarding', 'loading', 'dashboard'
+export default function TravelApp() {
+  const [view, setView] = useState<'home' | 'wizard' | 'dashboard' | 'print'>('home');
+  const [trips, setTrips] = useState<TripData[]>([]);
+  const [currentTripId, setCurrentTripId] = useState<string | null>(null);
+
+  // Wizard State
   const [step, setStep] = useState(1);
+  const [w_origin, setW_Origin] = useState("台北 (TPE)");
+  const [w_dest, setW_Dest] = useState<Destination | null>(null);
+  const [w_range, setW_Range] = useState<number[]>([15, 20]);
+  const [w_travelers, setW_Travelers] = useState<Traveler[]>([{ id: '1', name: '我', docId: '', phone: '' }]);
+  const [w_pref, setW_Pref] = useState({ flight: 'direct', hotel: '4star', purpose: 'leisure' });
+
+  // Dashboard Modal State
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [newActivity, setNewActivity] = useState<Partial<Activity>>({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
+  const [targetDay, setTargetDay] = useState(1);
   
-  // Form Data
-  const [destination, setDestination] = useState(null);
-  const [travelers, setTravelers] = useState(2);
-  const [flightPref, setFlightPref] = useState('direct'); // direct, transfer
-  const [hotelPref, setHotelPref] = useState('4star');
-  const [purpose, setPurpose] = useState('leisure');
+  // Dashboard Edit State
+  const [newItemText, setNewItemText] = useState("");
 
-  // Dashboard State
-  const [activeTab, setActiveTab] = useState('itinerary');
-  const [packingList, setPackingList] = useState(GENERATED_PACKING);
+  const currentTrip = useMemo(() => trips.find(t => t.id === currentTripId), [trips, currentTripId]);
 
-  const startPlanning = () => {
-    setAppState('loading');
-    // Simulate AI processing
-    setTimeout(() => {
-      setAppState('dashboard');
-    }, 2500);
+  // --- Actions ---
+
+  const handleCreateTrip = () => {
+    // Generate Trip Data
+    const duration = w_range.length === 2 ? w_range[1] - w_range[0] + 1 : 1;
+    const newTrip: TripData = {
+      id: Date.now().toString(),
+      status: 'planned',
+      destination: w_dest!,
+      origin: w_origin,
+      dateRange: { start: w_range[0], end: w_range.length === 2 ? w_range[1] : w_range[0], month: 10, year: 2025 },
+      duration: duration,
+      travelers: w_travelers,
+      budget: {
+        total: 85000 * w_travelers.length, // Simple logic
+        spent: 0,
+        breakdown: [
+           { name: "機票交通", value: 25000 * w_travelers.length, color: "#60A5FA" },
+           { name: "住宿飯店", value: 30000, color: "#F472B6" },
+           { name: "餐飲美食", value: 15000 * w_travelers.length, color: "#34D399" },
+           { name: "購物服飾", value: 10000, color: "#FBBF24" },
+           { name: "門票雜支", value: 5000, color: "#A78BFA" },
+        ]
+      },
+      itinerary: generateMockItinerary(duration, w_dest!),
+      packingList: JSON.parse(JSON.stringify(INITIAL_PACKING_TEMPLATE)),
+      preferences: w_pref
+    };
+
+    setTrips([...trips, newTrip]);
+    setCurrentTripId(newTrip.id);
+    setView('dashboard');
+    setStep(1); // Reset wizard
   };
 
-  const togglePackingItem = (category, id) => {
-    setPackingList(prev => ({
-      ...prev,
-      [category]: prev[category].map(item => 
-        item.id === id ? { ...item, checked: !item.checked } : item
-      )
-    }));
+  const updateTraveler = (index: number, field: keyof Traveler, value: string) => {
+    const updated = [...w_travelers];
+    updated[index] = { ...updated[index], [field]: value };
+    setW_Travelers(updated);
   };
 
-  // --- Render Views ---
+  const addTraveler = () => {
+    setW_Travelers([...w_travelers, { id: Date.now().toString(), name: `旅伴 ${w_travelers.length + 1}`, docId: '', phone: '' }]);
+  };
 
-  if (appState === 'loading') {
+  const removeTraveler = (index: number) => {
+    if (w_travelers.length > 1) {
+      setW_Travelers(w_travelers.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleAddActivity = () => {
+    if (!currentTrip || !newActivity.title) return;
+    const updatedTrips = trips.map(t => {
+      if (t.id === currentTrip.id) {
+        const updatedItinerary = t.itinerary.map(day => {
+          if (day.day === targetDay) {
+            return {
+              ...day,
+              activities: [...day.activities, { ...newActivity, id: Date.now().toString() } as Activity].sort((a, b) => a.time.localeCompare(b.time))
+            };
+          }
+          return day;
+        });
+        return { ...t, itinerary: updatedItinerary };
+      }
+      return t;
+    });
+    setTrips(updatedTrips);
+    setShowActivityModal(false);
+    setNewActivity({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
+  };
+
+  const handleAddItem = (category: string) => {
+    if (!currentTrip || !newItemText) return;
+    const updatedTrips = trips.map(t => {
+      if (t.id === currentTrip.id) {
+        const updatedList = { ...t.packingList };
+        if (!updatedList[category]) updatedList[category] = [];
+        updatedList[category].push({ id: Date.now().toString(), item: newItemText, checked: false, quantity: "1" });
+        return { ...t, packingList: updatedList };
+      }
+      return t;
+    });
+    setTrips(updatedTrips);
+    setNewItemText("");
+  };
+
+  const togglePackingCheck = (category: string, id: string) => {
+    const updatedTrips = trips.map(t => {
+      if (t.id === currentTrip.id) {
+        const updatedList = { ...t.packingList };
+        updatedList[category] = updatedList[category].map(item => item.id === id ? { ...item, checked: !item.checked } : item);
+        return { ...t, packingList: updatedList };
+      }
+      return t;
+    });
+    setTrips(updatedTrips);
+  };
+
+  // --- Views ---
+
+  if (view === 'home') {
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop')] bg-cover opacity-20 blur-sm"></div>
-        <div className="z-10 flex flex-col items-center space-y-6">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full border-4 border-rose-500/30 animate-spin border-t-rose-500"></div>
-            <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-rose-400 animate-pulse" size={40} />
-          </div>
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold">AI 正在規劃您的專屬旅程...</h2>
-            <p className="text-gray-400">正在分析當地天氣、搜尋最佳航線、匹配合適飯店</p>
-          </div>
-          <div className="w-64 space-y-1">
-             <div className="flex justify-between text-xs text-rose-300">
-               <span>整合預算...</span>
-               <span>生成行李清單...</span>
-             </div>
-             <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-               <div className="h-full bg-rose-500 animate-[width_2s_ease-in-out_infinite]" style={{width: '60%'}}></div>
-             </div>
+      <div className="min-h-screen bg-gray-50 p-8 font-sans">
+        <div className="max-w-5xl mx-auto">
+          <header className="flex justify-between items-center mb-12">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-rose-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
+                <Plane size={28} />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-800">TravelMate <span className="text-rose-500">AI</span></h1>
+            </div>
+            <button 
+              onClick={() => { setView('wizard'); setStep(1); }}
+              className="bg-rose-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all"
+            >
+              <Plus size={20} /> 建立新行程
+            </button>
+          </header>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {trips.length === 0 ? (
+              <div className="col-span-full text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200">
+                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                  <FileText size={40} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-400">目前沒有行程</h3>
+                <p className="text-gray-400 mt-2">點擊右上方按鈕開始規劃您的第一次旅程</p>
+              </div>
+            ) : (
+              trips.map(trip => (
+                <div key={trip.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all overflow-hidden group cursor-pointer" onClick={() => { setCurrentTripId(trip.id); setView('dashboard'); }}>
+                  <div className={`h-32 bg-gradient-to-br ${trip.destination.image} relative`}>
+                    <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white text-xs px-2 py-1 rounded-lg font-bold">
+                      {trip.duration} 天
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-xl font-bold text-gray-800 mb-1">{trip.destination.name}</h3>
+                    <p className="text-gray-500 text-sm flex items-center gap-1 mb-4">
+                      <Calendar size={14}/> 10/{trip.dateRange.start} - 10/{trip.dateRange.end}
+                    </p>
+                    <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                      <div className="flex -space-x-2">
+                        {trip.travelers.slice(0,3).map((t, i) => (
+                           <div key={i} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600">{t.name[0]}</div>
+                        ))}
+                        {trip.travelers.length > 3 && <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500">+{trip.travelers.length-3}</div>}
+                      </div>
+                      <span className="text-rose-500 font-medium text-sm hover:underline">查看詳情 &rarr;</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  if (appState === 'onboarding') {
+  if (view === 'wizard') {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row font-sans text-slate-800">
-        {/* Left Side: Visual */}
-        <div className="hidden lg:flex lg:w-1/3 bg-gradient-to-br from-rose-500 to-orange-400 p-12 flex-col justify-between text-white relative overflow-hidden">
-           <div className="absolute top-0 left-0 w-full h-full opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-           <div className="z-10">
-             <div className="flex items-center gap-3 mb-6">
-               <Plane className="w-10 h-10" />
-               <h1 className="text-3xl font-bold">TravelMate AI</h1>
-             </div>
-             <p className="text-xl font-light opacity-90">只需幾步，為您打造完美旅程。</p>
-           </div>
-           <div className="z-10 space-y-6">
-             <div className="flex items-center gap-4">
-               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><Calendar /></div>
-               <div>
-                 <p className="font-bold">智能檔期安排</p>
-                 <p className="text-sm opacity-75">自動避開人潮，整合農曆假期</p>
-               </div>
-             </div>
-             <div className="flex items-center gap-4">
-               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><PieChartIcon /></div>
-               <div>
-                 <p className="font-bold">精準預算控制</p>
-                 <p className="text-sm opacity-75">衣食住行細項全掌握</p>
-               </div>
-             </div>
-             <div className="flex items-center gap-4">
-               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><CheckSquare /></div>
-               <div>
-                 <p className="font-bold">動態行李清單</p>
-                 <p className="text-sm opacity-75">依天氣與人數自動生成</p>
-               </div>
-             </div>
-           </div>
-        </div>
-
-        {/* Right Side: Wizard */}
-        <div className="flex-1 p-6 lg:p-12 overflow-y-auto">
-          <div className="max-w-2xl mx-auto">
-            {/* Steps Indicator */}
-            <div className="flex items-center mb-8">
-               {[1, 2, 3].map(i => (
-                 <React.Fragment key={i}>
-                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= i ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                     {i}
-                   </div>
-                   {i < 3 && <div className={`w-12 h-1 ${step > i ? 'bg-rose-500' : 'bg-gray-200'} mx-2`}></div>}
-                 </React.Fragment>
-               ))}
+      <div className="min-h-screen bg-gray-50 flex justify-center py-12 px-4 font-sans">
+        <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="bg-rose-50 p-6 border-b border-rose-100 flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <Sparkles className="text-rose-500"/> AI 行程規劃嚮導
+            </h2>
+            <div className="flex gap-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className={`w-3 h-3 rounded-full ${step >= i ? 'bg-rose-500' : 'bg-gray-300'}`}></div>
+              ))}
             </div>
+          </div>
 
+          <div className="flex-1 p-8 overflow-y-auto">
             {step === 1 && (
-              <div className="space-y-6 animate-in slide-in-from-right-8 duration-500">
-                <h2 className="text-2xl font-bold text-gray-800">第一步：您想去哪裡？</h2>
-                
-                <div className="space-y-4">
-                  <label className="block font-medium text-gray-700">出發地</label>
-                  <div className="flex items-center bg-white border border-gray-300 rounded-xl p-3 shadow-sm">
-                    <MapPin className="text-gray-400 mr-2" />
-                    <input type="text" defaultValue="台北 (TPE)" className="flex-1 outline-none text-gray-800 font-medium" />
+              <div className="space-y-6 animate-in slide-in-from-right-8">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-2">出發地</label>
+                  <div className="flex gap-2 mb-2 flex-wrap">
+                    {POPULAR_ORIGINS.map(city => (
+                      <button key={city} onClick={() => setW_Origin(city)} className={`text-sm px-3 py-1 rounded-full border ${w_origin === city ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-600 border-gray-200'}`}>{city}</button>
+                    ))}
                   </div>
+                  <input type="text" value={w_origin} onChange={(e) => setW_Origin(e.target.value)} className="w-full p-3 border rounded-xl outline-none focus:border-rose-500 bg-gray-50" />
                 </div>
 
-                <div className="space-y-4">
-                  <label className="block font-medium text-gray-700">目的地</label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-2">目的地 (熱門城市)</label>
+                  <div className="grid grid-cols-2 gap-4">
                     {MOCK_DESTINATIONS.map(dest => (
-                      <button 
+                      <div 
                         key={dest.id}
-                        onClick={() => setDestination(dest)}
-                        className={`relative p-4 rounded-xl border-2 text-left transition-all h-32 flex flex-col justify-end overflow-hidden group ${destination?.id === dest.id ? 'border-rose-500 ring-2 ring-rose-200' : 'border-gray-200 hover:border-rose-300'}`}
+                        onClick={() => setW_Dest(dest)}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${w_dest?.id === dest.id ? 'border-rose-500 bg-rose-50' : 'border-gray-100 hover:border-rose-200'}`}
                       >
-                        <div className={`absolute inset-0 bg-gradient-to-br ${dest.image} opacity-10 group-hover:opacity-20 transition-opacity`}></div>
-                        <span className="font-bold relative z-10">{dest.name}</span>
-                        {destination?.id === dest.id && <div className="absolute top-2 right-2 bg-rose-500 text-white rounded-full p-1"><CheckSquare size={12}/></div>}
-                      </button>
+                         <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${dest.image}`}></div>
+                         <span className="font-bold text-gray-700">{dest.name}</span>
+                      </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                   <label className="block font-medium text-gray-700">選擇日期 (包含農曆與假期標註)</label>
-                   <CustomCalendar />
-                </div>
-
-                <div className="flex justify-end pt-6">
-                  <button 
-                    onClick={() => setStep(2)} disabled={!destination}
-                    className="bg-rose-500 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-rose-200"
-                  >
-                    下一步 <ArrowRight size={18} />
-                  </button>
+                <div>
+                   <label className="block font-bold text-gray-700 mb-2">日期選擇 (10月)</label>
+                   <CustomCalendar selectedRange={w_range} onSelectRange={setW_Range} />
+                   <p className="text-right text-sm text-gray-500 mt-2">
+                     已選擇: {w_range.length === 2 ? `${w_range[1] - w_range[0] + 1} 天` : '請選擇結束日期'}
+                   </p>
                 </div>
               </div>
             )}
 
             {step === 2 && (
-               <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
-                 <h2 className="text-2xl font-bold text-gray-800">第二步：您的旅行偏好</h2>
-                 
-                 {/* Flight & Hotel */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-3">
-                     <label className="font-medium flex items-center gap-2"><Plane size={18}/> 航班偏好</label>
-                     <div className="flex gap-2">
-                       <button onClick={() => setFlightPref('direct')} className={`flex-1 py-3 px-4 rounded-lg border font-medium ${flightPref === 'direct' ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-200'}`}>直飛</button>
-                       <button onClick={() => setFlightPref('transfer')} className={`flex-1 py-3 px-4 rounded-lg border font-medium ${flightPref === 'transfer' ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-200'}`}>轉機 (較便宜)</button>
-                     </div>
-                   </div>
-                   <div className="space-y-3">
-                     <label className="font-medium flex items-center gap-2"><Hotel size={18}/> 住宿等級</label>
-                     <select className="w-full p-3 bg-white border border-gray-200 rounded-lg outline-none focus:border-rose-500" value={hotelPref} onChange={(e) => setHotelPref(e.target.value)}>
-                       <option value="3star">經濟型 (3星級)</option>
-                       <option value="4star">舒適型 (4星級)</option>
-                       <option value="5star">奢華型 (5星級)</option>
-                       <option value="airbnb">特色民宿</option>
-                     </select>
-                   </div>
-                 </div>
-
-                 {/* Travelers */}
-                 <div className="space-y-4">
-                   <label className="font-medium flex items-center gap-2"><Users size={18}/> 隨行人員</label>
-                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <span>人數</span>
-                        <div className="flex items-center gap-4">
-                          <button onClick={() => setTravelers(Math.max(1, travelers - 1))} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200">-</button>
-                          <span className="font-bold text-xl">{travelers} 人</span>
-                          <button onClick={() => setTravelers(travelers + 1)} className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center hover:bg-rose-200">+</button>
+              <div className="space-y-6 animate-in slide-in-from-right-8">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-bold text-gray-800">隨行人員資料</h3>
+                  <button onClick={addTraveler} className="text-rose-500 text-sm font-bold flex items-center gap-1"><Plus size={16}/> 新增人員</button>
+                </div>
+                
+                <div className="space-y-4">
+                  {w_travelers.map((t, idx) => (
+                    <div key={t.id} className="p-4 border border-gray-200 rounded-xl relative group">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">姓名</label>
+                          <input type="text" value={t.name} onChange={(e) => updateTraveler(idx, 'name', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="姓名" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">證件號碼 (護照/ID)</label>
+                          <input type="text" value={t.docId} onChange={(e) => updateTraveler(idx, 'docId', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="A123456789" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">聯絡電話</label>
+                          <input type="text" value={t.phone} onChange={(e) => updateTraveler(idx, 'phone', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="0912-345-678" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">房間分配 (選填)</label>
+                          <input type="text" value={t.room} onChange={(e) => updateTraveler(idx, 'room', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="Room 101" />
                         </div>
                       </div>
-                      <div className="text-sm text-gray-500 flex gap-4">
-                        <label className="flex items-center gap-2"><input type="checkbox" className="accent-rose-500" /> 包含兒童</label>
-                        <label className="flex items-center gap-2"><input type="checkbox" className="accent-rose-500" /> 包含長輩</label>
-                      </div>
-                   </div>
-                 </div>
-
-                 {/* Purpose */}
-                 <div className="space-y-4">
-                   <label className="font-medium flex items-center gap-2"><Star size={18}/> 旅遊目的</label>
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                     {['休閒度假', '冒險探索', '文化深度', '購物美食'].map(p => (
-                       <button 
-                        key={p}
-                        onClick={() => setPurpose(p)}
-                        className={`py-3 rounded-lg border text-sm font-medium transition-colors ${purpose === p ? 'bg-rose-500 text-white border-rose-500' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
-                       >
-                         {p}
-                       </button>
-                     ))}
-                   </div>
-                 </div>
-
-                 <div className="flex justify-between pt-6">
-                    <button onClick={() => setStep(1)} className="text-gray-500 hover:text-gray-800 font-medium px-4">上一步</button>
-                    <button 
-                      onClick={() => setStep(3)}
-                      className="bg-rose-500 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-rose-600 shadow-lg shadow-rose-200"
-                    >
-                      確認偏好 <ArrowRight size={18} />
-                    </button>
-                 </div>
-               </div>
+                      {idx > 0 && (
+                        <button onClick={() => removeTraveler(idx)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {step === 3 && (
-              <div className="space-y-8 animate-in slide-in-from-right-8 duration-500 text-center py-8">
-                 <h2 className="text-2xl font-bold text-gray-800">確認您的行程資訊</h2>
-                 <div className="bg-white p-6 rounded-2xl border border-rose-100 shadow-sm text-left space-y-4">
-                    <div className="flex justify-between border-b border-gray-100 pb-3">
-                      <span className="text-gray-500">目的地</span>
-                      <span className="font-bold text-gray-800">{destination?.name}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-gray-100 pb-3">
-                      <span className="text-gray-500">人數 / 類型</span>
-                      <span className="font-bold text-gray-800">{travelers}人 / {purpose}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-gray-100 pb-3">
-                      <span className="text-gray-500">住宿 / 航班</span>
-                      <span className="font-bold text-gray-800">{hotelPref === '4star' ? '4星級' : hotelPref} / {flightPref === 'direct' ? '直飛' : '轉機'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">日期</span>
-                      <span className="font-bold text-rose-500">10月15日 - 10月20日 (含中秋後行程)</span>
-                    </div>
+              <div className="text-center py-10 animate-in slide-in-from-right-8">
+                 <div className="w-24 h-24 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6 text-rose-500 animate-pulse">
+                   <Sparkles size={48} />
                  </div>
-                 <button 
-                    onClick={startPlanning}
-                    className="w-full bg-gradient-to-r from-rose-500 to-orange-500 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 hover:opacity-90 transition-opacity shadow-xl shadow-rose-200"
-                 >
-                    <Sparkles className="animate-pulse" /> AI 智能生成行程
-                 </button>
+                 <h2 className="text-2xl font-bold text-gray-800 mb-2">準備生成行程</h2>
+                 <p className="text-gray-500 mb-8">AI 將根據 {w_travelers.length} 人的需求，規劃 {w_dest?.name} 的 {w_range[1] - w_range[0] + 1} 天旅程。</p>
+                 
+                 <div className="bg-gray-50 p-6 rounded-2xl text-left max-w-sm mx-auto mb-8 border border-gray-200">
+                   <p className="flex justify-between mb-2"><span className="text-gray-500">日期</span> <span className="font-bold">10/{w_range[0]} - 10/{w_range[1]}</span></p>
+                   <p className="flex justify-between mb-2"><span className="text-gray-500">人數</span> <span className="font-bold">{w_travelers.length} 人</span></p>
+                   <p className="flex justify-between"><span className="text-gray-500">預算預估</span> <span className="font-bold text-rose-500">${(85000 * w_travelers.length).toLocaleString()}</span></p>
+                 </div>
               </div>
+            )}
+          </div>
+
+          <div className="p-6 border-t border-gray-100 flex justify-between bg-white">
+            {step > 1 ? (
+              <button onClick={() => setStep(step - 1)} className="px-6 py-2 text-gray-500 font-medium hover:bg-gray-100 rounded-lg">上一步</button>
+            ) : (
+              <button onClick={() => setView('home')} className="px-6 py-2 text-gray-500 font-medium hover:bg-gray-100 rounded-lg">取消</button>
+            )}
+            
+            {step < 3 ? (
+              <button onClick={() => setStep(step + 1)} disabled={!w_dest} className="bg-rose-500 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed">下一步 <ArrowRight size={18} /></button>
+            ) : (
+              <button onClick={handleCreateTrip} className="bg-rose-500 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-rose-600">確認生成 <Sparkles size={18} /></button>
             )}
           </div>
         </div>
@@ -441,200 +561,299 @@ export default function TravelAIPlanner() {
     );
   }
 
-  // --- DASHBOARD VIEW ---
-  return (
-    <div className="min-h-screen bg-gray-50 flex font-sans text-slate-800">
-      
-      {/* Sidebar Navigation */}
-      <aside className="w-16 md:w-20 lg:w-64 bg-white border-r border-gray-200 flex flex-col justify-between fixed h-full z-10 transition-all duration-300">
-        <div>
-          <div className="h-20 flex items-center justify-center lg:justify-start lg:px-8 border-b border-gray-100 bg-rose-50">
-            <div className="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
-              <Plane size={24} />
-            </div>
-            <span className="hidden lg:block ml-3 font-bold text-xl text-gray-800">TripAI</span>
-          </div>
-
-          <nav className="p-2 lg:p-4 space-y-2">
-            {[
-              { id: 'itinerary', label: '每日行程', icon: Map },
-              { id: 'budget', label: '預算分析', icon: DollarSign },
-              { id: 'packing', label: '智能行李', icon: Briefcase },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-center lg:justify-start p-3 rounded-xl transition-all duration-200 ${
-                  activeTab === item.id 
-                    ? 'bg-rose-500 text-white font-semibold shadow-md shadow-rose-200' 
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                }`}
-              >
-                <item.icon size={22} />
-                <span className="hidden lg:block ml-3">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="p-4 border-t border-gray-100">
-          <button onClick={() => setAppState('onboarding')} className="w-full flex items-center justify-center lg:justify-start p-3 rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">
-            <Home size={22} />
-            <span className="hidden lg:block ml-3 font-medium">回首頁</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 ml-16 md:ml-20 lg:ml-64 p-4 lg:p-8">
+  if (view === 'dashboard' && currentTrip) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex font-sans text-slate-800">
         
-        {/* Header Summary */}
-        <header className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-           <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                {GENERATED_TRIP_DATA.destination} 
-                <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{GENERATED_TRIP_DATA.dates}</span>
-              </h1>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                 <span className="flex items-center gap-1"><Sun size={14} className="text-orange-400"/> {GENERATED_TRIP_DATA.weather}</span>
-                 <span className="flex items-center gap-1"><Users size={14} className="text-blue-400"/> {GENERATED_TRIP_DATA.travelers}人 ({GENERATED_TRIP_DATA.theme})</span>
-                 <span className="flex items-center gap-1"><Hotel size={14} className="text-purple-400"/> {GENERATED_TRIP_DATA.hotelLevel}</span>
-              </div>
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10">
+           <div className="p-6 border-b border-gray-100 flex items-center gap-2">
+             <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center text-white"><Plane size={18}/></div>
+             <span className="font-bold text-lg">TravelMate</span>
            </div>
-           <div className="text-right">
-             <p className="text-gray-500 text-sm">總預算 (TWD)</p>
-             <p className="text-3xl font-bold text-rose-500">${GENERATED_TRIP_DATA.totalBudget.toLocaleString()}</p>
-           </div>
-        </header>
-
-        {/* Content Area */}
-        <div className="max-w-6xl mx-auto animate-in fade-in duration-500">
-          
-          {activeTab === 'itinerary' && (
-            <div className="space-y-6">
-               <div className="flex items-center justify-between">
-                 <h2 className="text-xl font-bold text-gray-800 border-l-4 border-rose-500 pl-3">AI 規劃行程</h2>
-                 <button className="text-rose-500 font-medium text-sm flex items-center gap-1 hover:bg-rose-50 px-3 py-1 rounded-lg transition-colors"><Plus size={16}/> 自訂活動</button>
+           
+           <div className="p-4">
+             <div className="mb-6">
+               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">當前行程</h3>
+               <div className="bg-rose-50 text-rose-600 p-3 rounded-xl font-bold flex items-center gap-2">
+                 <MapPin size={18}/> {currentTrip.destination.name}
                </div>
-               
-               {GENERATED_ITINERARY.map((day) => (
-                 <div key={day.day} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                   <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
-                     <div>
-                       <span className="font-bold text-rose-500 text-lg">Day {day.day}</span>
-                       <span className="ml-3 font-medium text-gray-700">{day.date}</span>
-                       <span className="ml-2 text-gray-400 text-sm">- {day.title}</span>
-                     </div>
-                     {day.weather === 'sunny' ? <Sun className="text-orange-400"/> : <CloudRain className="text-blue-400"/>}
-                   </div>
-                   <div className="p-4 space-y-4">
-                     {day.activities.map((act) => (
-                       <div key={act.id} className="flex gap-4 group">
-                         <div className="flex flex-col items-center">
-                           <div className="text-xs font-bold text-gray-400 mb-1">{act.time}</div>
-                           <div className="w-2 h-full border-l-2 border-dashed border-gray-200"></div>
-                         </div>
-                         <div className="flex-1 bg-white border border-gray-100 rounded-xl p-3 hover:shadow-md hover:border-rose-200 transition-all flex items-start gap-3">
-                            <div className={`p-2 rounded-lg shrink-0 ${act.type === 'flight' ? 'bg-blue-100 text-blue-600' : act.type === 'photo' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'}`}>
-                              <act.icon size={20} />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex justify-between items-start">
-                                <h4 className="font-bold text-gray-800">{act.title}</h4>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${act.tag.includes('打卡') ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-500'}`}>{act.tag}</span>
-                              </div>
-                              <p className="text-sm text-gray-500 flex items-center gap-1 mt-1"><MapPin size={12}/> {act.loc}</p>
-                            </div>
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               ))}
+             </div>
+
+             <nav className="space-y-1">
+               <button onClick={() => setView('dashboard')} className="w-full flex items-center gap-3 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium"><Map size={18}/> 行程總覽</button>
+               <button onClick={() => setView('print')} className="w-full flex items-center gap-3 px-3 py-2 text-gray-500 hover:bg-gray-50 rounded-lg font-medium transition-colors"><Printer size={18}/> 列印/預覽</button>
+             </nav>
+           </div>
+
+           <div className="mt-auto p-4 border-t border-gray-100">
+             <button onClick={() => setView('home')} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 px-2"><Home size={18}/> 回首頁</button>
+           </div>
+        </aside>
+
+        {/* Content */}
+        <main className="flex-1 ml-64 p-8 overflow-y-auto">
+          <header className="flex justify-between items-start mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-1">{currentTrip.destination.name} 之旅</h1>
+              <p className="text-gray-500 flex items-center gap-2">
+                <Calendar size={16}/> 2025/10/{currentTrip.dateRange.start} - 10/{currentTrip.dateRange.end} ({currentTrip.duration}天)
+                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                <Users size={16}/> {currentTrip.travelers.length}人
+              </p>
             </div>
-          )}
+            <div className="flex gap-3">
+              <button onClick={() => setView('print')} className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-50"><Printer size={18}/> 匯出 PDF</button>
+            </div>
+          </header>
 
-          {activeTab === 'budget' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
-                  <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><PieChartIcon size={20} className="text-rose-500"/> 預算分佈 (衣食住行)</h3>
-                  <div className="flex-1 flex items-center justify-center py-6">
-                     <DonutChart data={GENERATED_BUDGET} total={GENERATED_TRIP_DATA.totalBudget} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Col: Itinerary */}
+            <div className="lg:col-span-2 space-y-6">
+              {currentTrip.itinerary.map((day) => (
+                <div key={day.day} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
+                    <div>
+                      <span className="font-bold text-rose-500 text-lg mr-3">Day {day.day}</span>
+                      <span className="font-medium text-gray-700">{day.title}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {/* Emergency Info Pill */}
+                      <div className="hidden md:flex items-center gap-3 text-xs bg-white border border-gray-200 rounded-full px-3 py-1">
+                        <span className="flex items-center gap-1 text-blue-600 font-bold"><Phone size={12}/> 警: {day.emergency.police}</span>
+                        <span className="w-px h-3 bg-gray-200"></span>
+                        <span className="flex items-center gap-1 text-red-500 font-bold"><Ambulance size={12}/> 醫: {day.emergency.ambulance}</span>
+                        <span className="w-px h-3 bg-gray-200"></span>
+                        <span className="flex items-center gap-1 text-gray-600"><Car size={12}/> {day.emergency.apps.join('/')}</span>
+                      </div>
+                      {day.weather === 'sunny' ? <Sun className="text-orange-400" size={20}/> : <CloudRain className="text-blue-400" size={20}/>}
+                    </div>
                   </div>
-               </div>
-
-               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                  <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><CreditCard size={20} className="text-emerald-500"/> 支出細項建議</h3>
-                  <div className="space-y-4">
-                    {GENERATED_BUDGET.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}></div>
-                          <span className="font-medium text-gray-700">{item.name}</span>
+                  
+                  <div className="p-4 space-y-4">
+                    {day.activities.map((act) => (
+                      <div key={act.id} className="flex gap-4 group">
+                        <div className="flex flex-col items-center pt-1 w-12 shrink-0">
+                           <span className="text-xs font-bold text-gray-500">{act.time}</span>
+                           <div className="w-px h-full bg-gray-200 my-1 group-last:hidden"></div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold text-gray-800">${item.value.toLocaleString()}</div>
-                          <div className="text-xs text-gray-400">約佔 {Math.round(item.value / GENERATED_TRIP_DATA.totalBudget * 100)}%</div>
+                        <div className="flex-1 bg-white border border-gray-100 rounded-xl p-3 hover:border-rose-200 hover:shadow-md transition-all flex items-start gap-3">
+                           <div className={`p-2 rounded-lg ${act.type === 'flight' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                             {act.type === 'flight' ? <Plane size={18}/> : act.type === 'hotel' ? <Hotel size={18}/> : act.type === 'food' ? <Utensils size={18}/> : <Camera size={18}/>}
+                           </div>
+                           <div>
+                             <h4 className="font-bold text-gray-800">{act.title}</h4>
+                             <p className="text-sm text-gray-500 flex items-center gap-1"><MapPin size={12}/> {act.loc}</p>
+                           </div>
+                           <span className="ml-auto text-xs bg-gray-100 px-2 py-1 rounded text-gray-500">{act.tag}</span>
                         </div>
                       </div>
                     ))}
-                    <div className="mt-6 pt-4 border-t border-gray-100 p-4 bg-yellow-50 rounded-xl text-yellow-800 text-sm">
-                       <p className="font-bold mb-1">💡 AI 省錢建議：</p>
-                       <p>京都交通建議購買「關西周遊卡」可節省約 $2,000 TWD。部分景點建議提前網路購票。</p>
-                    </div>
+                    <button 
+                      onClick={() => { setTargetDay(day.day); setShowActivityModal(true); }}
+                      className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-rose-500 hover:border-rose-200 font-medium flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Plus size={16}/> 新增活動
+                    </button>
                   </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Right Col: Budget & Packing */}
+            <div className="space-y-6">
+               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><PieChartIcon size={18} className="text-rose-500"/> 預算概況</h3>
+                 <DonutChart data={currentTrip.budget.breakdown} total={currentTrip.budget.total} />
+               </div>
+
+               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> 行李清單</h3>
+                 <div className="space-y-4">
+                   {Object.entries(currentTrip.packingList).map(([cat, items]) => (
+                     <div key={cat}>
+                       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{cat}</h4>
+                       <div className="space-y-2">
+                         {items.map(item => (
+                           <div key={item.id} onClick={() => togglePackingCheck(cat, item.id)} className="flex items-center gap-2 cursor-pointer group">
+                             <div className={`w-4 h-4 rounded border flex items-center justify-center ${item.checked ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                               {item.checked && <CheckSquare size={10} className="text-white"/>}
+                             </div>
+                             <span className={`text-sm ${item.checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{item.item}</span>
+                           </div>
+                         ))}
+                       </div>
+                       <div className="mt-2 flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="新增物品..." 
+                            className="text-xs border-b border-gray-200 w-full outline-none focus:border-blue-500 py-1"
+                            value={newItemText}
+                            onChange={(e) => setNewItemText(e.target.value)}
+                            onKeyDown={(e) => { if(e.key === 'Enter') handleAddItem(cat); }}
+                          />
+                          <button onClick={() => handleAddItem(cat)} className="text-blue-500"><Plus size={14}/></button>
+                       </div>
+                     </div>
+                   ))}
+                 </div>
                </div>
             </div>
-          )}
+          </div>
+        </main>
 
-          {activeTab === 'packing' && (
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-6 rounded-2xl shadow-lg flex justify-between items-center">
-                 <div>
-                   <h2 className="text-xl font-bold mb-1">智能行李清單</h2>
-                   <p className="text-blue-100 text-sm opacity-90">根據 6天行程、2位成人、18°C 天氣自動生成</p>
+        {/* Add Activity Modal */}
+        {showActivityModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-2xl w-full max-w-md animate-in zoom-in-95">
+               <div className="flex justify-between items-center mb-4">
+                 <h3 className="font-bold text-lg">新增活動 - Day {targetDay}</h3>
+                 <button onClick={() => setShowActivityModal(false)}><X size={20} className="text-gray-400"/></button>
+               </div>
+               <div className="space-y-3">
+                 <input className="w-full p-2 border rounded-lg" placeholder="活動標題 (如: 晚餐)" value={newActivity.title} onChange={e => setNewActivity({...newActivity, title: e.target.value})} />
+                 <div className="flex gap-2">
+                   <input className="w-1/3 p-2 border rounded-lg" type="time" value={newActivity.time} onChange={e => setNewActivity({...newActivity, time: e.target.value})} />
+                   <input className="flex-1 p-2 border rounded-lg" placeholder="地點" value={newActivity.loc} onChange={e => setNewActivity({...newActivity, loc: e.target.value})} />
                  </div>
-                 <div className="bg-white/20 p-3 rounded-full">
-                   <Briefcase size={32} />
+                 <div className="flex gap-2">
+                    <select className="p-2 border rounded-lg flex-1" value={newActivity.type} onChange={e => setNewActivity({...newActivity, type: e.target.value as any})}>
+                      <option value="food">美食</option>
+                      <option value="sightseeing">觀光</option>
+                      <option value="photo">攝影</option>
+                      <option value="other">其他</option>
+                    </select>
+                    <input className="flex-1 p-2 border rounded-lg" placeholder="標籤 (如: 必吃)" value={newActivity.tag} onChange={e => setNewActivity({...newActivity, tag: e.target.value})} />
                  </div>
+               </div>
+               <div className="mt-6 flex justify-end gap-2">
+                 <button onClick={() => setShowActivityModal(false)} className="px-4 py-2 text-gray-500">取消</button>
+                 <button onClick={handleAddActivity} className="px-4 py-2 bg-rose-500 text-white rounded-lg font-bold">確認新增</button>
+               </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (view === 'print' && currentTrip) {
+    return (
+      <div className="min-h-screen bg-gray-100 p-8 flex justify-center">
+        <div className="w-full max-w-[210mm] bg-white shadow-xl min-h-[297mm] p-12 relative print:shadow-none print:w-full print:p-0">
+          
+          {/* Print Controls (Hidden when printing) */}
+          <div className="absolute top-4 right-4 flex gap-2 print:hidden">
+            <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-blue-700 shadow-md">
+              <Printer size={16}/> 列印 / 存為 PDF
+            </button>
+            <button onClick={() => setView('dashboard')} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300">
+              關閉
+            </button>
+          </div>
+
+          {/* Document Header */}
+          <div className="border-b-2 border-black pb-4 mb-8">
+            <div className="flex justify-between items-end">
+              <div>
+                <h1 className="text-3xl font-bold uppercase tracking-wider mb-2">Travel Itinerary</h1>
+                <p className="text-lg">旅行計劃書：{currentTrip.destination.name}</p>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.entries(packingList).map(([category, items]) => (
-                  <div key={category} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                    <h3 className="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-                       {category.includes('證件') && <User size={18} className="text-rose-500"/>}
-                       {category.includes('衣物') && <Users size={18} className="text-blue-500"/>}
-                       {category.includes('電子') && <Camera size={18} className="text-orange-500"/>}
-                       {category}
-                    </h3>
-                    <div className="space-y-3">
-                      {items.map((item) => (
-                        <div 
-                          key={item.id} 
-                          onClick={() => togglePackingItem(category, item.id)}
-                          className="flex items-start gap-3 cursor-pointer group select-none"
-                        >
-                          <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 ${item.checked ? 'bg-rose-500 border-rose-500' : 'border-gray-300 group-hover:border-rose-400'}`}>
-                            {item.checked && <CheckSquare size={14} className="text-white" />}
-                          </div>
-                          <div>
-                            <p className={`text-sm font-medium transition-colors ${item.checked ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                              {item.item}
-                            </p>
-                            <p className="text-xs text-rose-500 font-medium mt-0.5">{item.quantity}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              <div className="text-right">
+                <p className="font-bold">{currentTrip.dateRange.start} Oct - {currentTrip.dateRange.end} Oct, 2025</p>
+                <p className="text-gray-600">{currentTrip.duration} Days / {currentTrip.travelers.length} Pax</p>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Travelers Section */}
+          <div className="mb-8">
+            <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-3 pb-1">旅客資料 (Traveler Information)</h2>
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="p-2">姓名 (Name)</th>
+                  <th className="p-2">證件號碼 (ID/Passport)</th>
+                  <th className="p-2">聯絡電話 (Phone)</th>
+                  <th className="p-2">房號 (Room)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentTrip.travelers.map((t, i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    <td className="p-2 font-medium">{t.name}</td>
+                    <td className="p-2">{t.docId || '-'}</td>
+                    <td className="p-2">{t.phone || '-'}</td>
+                    <td className="p-2">{t.room || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Emergency Section */}
+          <div className="mb-8 p-4 border border-gray-300 rounded-lg bg-gray-50 flex justify-between items-center">
+            <div>
+               <h3 className="font-bold text-sm mb-1">當地緊急聯絡資訊 (Emergency Contact)</h3>
+               <div className="flex gap-6 text-sm">
+                 <span>👮 警察 (Police): <strong>{currentTrip.destination.emergency.police}</strong></span>
+                 <span>🚑 救護 (Ambulance): <strong>{currentTrip.destination.emergency.ambulance}</strong></span>
+               </div>
+            </div>
+            <div className="text-right text-sm">
+               <span className="block text-gray-500 mb-1">推薦叫車 APP</span>
+               <span className="font-mono bg-white px-2 py-1 border rounded">{currentTrip.destination.emergency.apps.join(' / ')}</span>
+            </div>
+          </div>
+
+          {/* Itinerary Section */}
+          <div className="mb-8">
+            <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-4 pb-1">每日行程 (Daily Itinerary)</h2>
+            <div className="space-y-6">
+              {currentTrip.itinerary.map(day => (
+                <div key={day.day} className="flex gap-4">
+                  <div className="w-16 shrink-0 pt-1">
+                    <span className="block font-bold text-lg">Day {day.day}</span>
+                    <span className="text-xs text-gray-500">{day.date}</span>
+                  </div>
+                  <div className="flex-1 border-l-2 border-gray-200 pl-4 pb-4">
+                    <h3 className="font-bold mb-2">{day.title}</h3>
+                    <div className="space-y-2">
+                       {day.activities.map((act, idx) => (
+                         <div key={idx} className="flex text-sm">
+                           <span className="w-16 font-mono text-gray-600 shrink-0">{act.time}</span>
+                           <span className="font-medium mr-2">{act.title}</span>
+                           <span className="text-gray-500">@ {act.loc}</span>
+                         </div>
+                       ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Packing Section */}
+          <div>
+            <h2 className="text-sm font-bold uppercase border-b border-gray-300 mb-3 pb-1">行李核對清單 (Packing List)</h2>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              {Object.entries(currentTrip.packingList).map(([cat, items]) => (
+                <div key={cat}>
+                  <h4 className="font-bold text-gray-600 mb-2">{cat}</h4>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-700">
+                    {items.map((item, i) => (
+                      <li key={i}>{item.item} <span className="text-xs text-gray-400">x{item.quantity}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
 
         </div>
-      </main>
-    </div>
-  );
+      </div>
+    );
+  }
+
+  return null;
 }
