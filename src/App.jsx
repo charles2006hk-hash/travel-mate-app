@@ -101,7 +101,7 @@ const DonutChart = ({ data, total }) => {
 
   return (
     <div className="relative w-64 h-64 mx-auto">
-      <div style={conicStyle as any} className="shadow-xl"></div>
+      <div style={conicStyle} className="shadow-xl"></div>
       {/* Inner White Circle to make it a donut */}
       <div className="absolute inset-0 m-auto w-40 h-40 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
         <span className="text-gray-400 text-sm font-medium">總預算</span>
