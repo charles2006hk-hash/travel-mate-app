@@ -2,11 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Map, Calendar, CheckSquare, 
   Plane, Hotel, Camera, Utensils, 
-  Plus, Trash2, Edit3,
+  Plus, Trash2, Edit3, Lock, Unlock,
   MapPin, PieChart as PieChartIcon,
   Briefcase, Sparkles, Sun, CloudRain,
   ArrowRight, Users, Home, Printer, Phone,
-  Ambulance, Car, X, FileText, ChevronLeft, ChevronRight, Menu
+  Ambulance, Car, X, FileText, ChevronLeft, ChevronRight, Menu,
+  Baby, Accessibility
 } from 'lucide-react';
 
 // --- Mock Data ---
@@ -14,48 +15,43 @@ import {
 const MOCK_DESTINATIONS = [
   { 
     id: 'kyoto', name: '日本 京都 (Kyoto)', image: 'from-rose-400 to-orange-300', currency: 'JPY',
+    baseFlight: 12000, baseDailyCost: 3000,
     emergency: { police: '110', ambulance: '119', apps: ['GO', 'Uber', 'JapanTaxi'] }
   },
   { 
     id: 'bangkok', name: '泰國 曼谷 (Bangkok)', image: 'from-orange-400 to-yellow-500', currency: 'THB',
+    baseFlight: 8000, baseDailyCost: 2000,
     emergency: { police: '191', ambulance: '1669', apps: ['Grab', 'Bolt'] }
   },
   { 
     id: 'paris', name: '法國 巴黎 (Paris)', image: 'from-blue-400 to-purple-300', currency: 'EUR',
+    baseFlight: 35000, baseDailyCost: 5000,
     emergency: { police: '17', ambulance: '15', apps: ['Uber', 'G7', 'Bolt'] }
   },
   { 
     id: 'seoul', name: '韓國 首爾 (Seoul)', image: 'from-indigo-400 to-blue-500', currency: 'KRW',
+    baseFlight: 10000, baseDailyCost: 3500,
     emergency: { police: '112', ambulance: '119', apps: ['Kakao T', 'Uber'] }
   },
 ];
 
 const POPULAR_ORIGINS = ["台北 (TPE)", "高雄 (KHH)", "香港 (HKG)", "東京 (NRT)"];
 
-const INITIAL_PACKING_TEMPLATE = {
-  "隨身證件": [
-    { id: 'p1', item: "護照", checked: false, quantity: "1本", owner: 'all' },
-    { id: 'p2', item: "現金/信用卡", checked: false, quantity: "適量", owner: 'all' },
-  ],
-  "衣物": [
-    { id: 'c1', item: "換洗衣物", checked: false, quantity: "依天數", owner: 'all' },
-    { id: 'c2', item: "好走的鞋", checked: false, quantity: "1雙", owner: 'all' },
-  ],
-  "電子": [
-    { id: 'e1', item: "行動電源", checked: false, quantity: "1個", owner: 'all' },
-    { id: 'e2', item: "轉接頭", checked: false, quantity: "1個", owner: 'all' },
-  ]
-};
+const TRAVELER_TYPES = [
+  { id: 'adult', label: '成人', icon: Users, costFactor: 1 },
+  { id: 'child', label: '兒童 (2-12歲)', icon: Baby, costFactor: 0.8 },
+  { id: 'infant', label: '幼兒 (<2歲)', icon: Baby, costFactor: 0.1 },
+  { id: 'senior', label: '長輩', icon: Accessibility, costFactor: 1 },
+];
 
 // --- Helper Functions ---
 
-// 簡單模擬農曆與假期 (Demo用途)
 const getLunarAndHoliday = (year, month, day) => {
   const dateStr = `${month + 1}/${day}`;
   let lunar = "";
   let holiday = "";
 
-  // 簡單規律模擬農曆
+  // 簡單規律模擬農曆 (僅作示意)
   const lunarDay = (day + 10) % 30; 
   if (lunarDay === 1) lunar = "初一";
   else if (lunarDay === 15) lunar = "十五";
@@ -70,32 +66,154 @@ const getLunarAndHoliday = (year, month, day) => {
   if (dateStr === "5/1") holiday = "勞動節";
   if (dateStr === "10/10") holiday = "國慶";
   if (dateStr === "12/25") holiday = "聖誕";
-  if (month === 9 && day === 6) holiday = "中秋"; // 2025 模擬
 
-  return { lunar, holiday };
+  const isWeekend = new Date(year, month, day).getDay() === 0 || new Date(year, month, day).getDay() === 6;
+
+  return { lunar, holiday, isWeekend };
 };
 
-const generateMockItinerary = (days, dest, startDate) => {
+// 智能預算估算
+const calculateSmartBudget = (dest, duration, travelers, pref, startDate) => {
+  if (!dest) return { total: 0, breakdown: [] };
+
+  let flightTotal = 0;
+  let hotelTotal = 0;
+  let foodTotal = 0;
+  let otherTotal = 0;
+
+  // 1. 季節/假日加成
+  let seasonMultiplier = 1.0;
+  const month = startDate.getMonth();
+  if (month === 0 || month === 6 || month === 11) seasonMultiplier = 1.3; // 寒暑假/過年
+
+  // 2. 住宿等級加成
+  let hotelMultiplier = 1.0;
+  if (pref.hotel === '3star') hotelMultiplier = 0.8;
+  if (pref.hotel === '5star') hotelMultiplier = 2.0;
+
+  // 3. 計算各項費用
+  travelers.forEach(t => {
+    const type = TRAVELER_TYPES.find(type => type.id === t.type) || TRAVELER_TYPES[0];
+    
+    // 機票 (幼兒極低價)
+    flightTotal += dest.baseFlight * type.costFactor * seasonMultiplier;
+
+    // 餐飲雜支 (兒童/幼兒較低)
+    foodTotal += dest.baseDailyCost * duration * (type.id === 'infant' ? 0.2 : type.id === 'child' ? 0.7 : 1);
+    otherTotal += 2000 * duration * (type.id === 'infant' ? 0.5 : 1); // 門票、購物
+  });
+
+  // 住宿 (以房為單位，簡單估算: 2人一房)
+  const roomsNeeded = Math.ceil(travelers.filter(t => t.type !== 'infant').length / 2);
+  // 假設基礎房價為每日生活費的 1.5 倍
+  hotelTotal = (dest.baseDailyCost * 1.5) * roomsNeeded * duration * hotelMultiplier * seasonMultiplier;
+
+  const total = Math.round(flightTotal + hotelTotal + foodTotal + otherTotal);
+
+  return {
+    total,
+    breakdown: [
+      { name: "機票交通", value: Math.round(flightTotal), color: "#60A5FA" },
+      { name: "住宿飯店", value: Math.round(hotelTotal), color: "#F472B6" },
+      { name: "餐飲美食", value: Math.round(foodTotal), color: "#34D399" },
+      { name: "購物/門票", value: Math.round(otherTotal), color: "#FBBF24" },
+    ]
+  };
+};
+
+// 智能行李生成
+const generateSmartPackingList = (days, travelers, dest) => {
+  const list = {
+    "隨身證件": [
+      { id: 'p1', item: "護照", checked: false, quantity: "每人1本", owner: 'all' },
+      { id: 'p2', item: "現金/信用卡", checked: false, quantity: "適量", owner: 'all' },
+    ],
+    "衣物": [
+      { id: 'c1', item: "換洗衣物", checked: false, quantity: `${days + 1}套`, owner: 'all' },
+      { id: 'c2', item: "好走的鞋", checked: false, quantity: "1雙", owner: 'all' },
+    ],
+    "電子": [
+      { id: 'e1', item: "行動電源", checked: false, quantity: "1個", owner: 'all' },
+      { id: 'e2', item: "轉接頭/充電器", checked: false, quantity: "1組", owner: 'all' },
+    ]
+  };
+
+  // 根據人員類型添加
+  travelers.forEach(t => {
+    if (t.type === 'infant') {
+      if (!list["幼兒用品"]) list["幼兒用品"] = [];
+      list["幼兒用品"].push({ id: `baby-${Date.now()}-1`, item: "尿布", checked: false, quantity: `${days * 6}片`, owner: t.id });
+      list["幼兒用品"].push({ id: `baby-${Date.now()}-2`, item: "奶粉/奶瓶", checked: false, quantity: "1罐", owner: t.id });
+      list["幼兒用品"].push({ id: `baby-${Date.now()}-3`, item: "嬰兒推車", checked: false, quantity: "1台", owner: t.id });
+    }
+    if (t.type === 'child') {
+      if (!list["兒童用品"]) list["兒童用品"] = [];
+      list["兒童用品"].push({ id: `child-${Date.now()}-1`, item: "安撫玩具", checked: false, quantity: "1個", owner: t.id });
+      list["兒童用品"].push({ id: `child-${Date.now()}-2`, item: "兒童餐具", checked: false, quantity: "1組", owner: t.id });
+    }
+    if (t.type === 'senior') {
+      if (!list["長輩用品"]) list["長輩用品"] = [];
+      list["長輩用品"].push({ id: `senior-${Date.now()}-1`, item: "常備藥品(高血壓等)", checked: false, quantity: `${days}天份`, owner: t.id });
+      list["長輩用品"].push({ id: `senior-${Date.now()}-2`, item: "保暖衣物/帽子", checked: false, quantity: "1件", owner: t.id });
+    }
+  });
+
+  return list;
+};
+
+// 智能行程生成
+const generateMockItinerary = (days, dest, startDate, travelers) => {
+  const hasKids = travelers.some(t => t.type === 'child' || t.type === 'infant');
+  const hasSeniors = travelers.some(t => t.type === 'senior');
+
   return Array.from({ length: days }, (_, i) => {
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + i);
     const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
     
+    let activities = [];
+
+    // 早餐
+    activities.push({ id: `d${i}-1`, type: 'food', time: '09:00', title: '飯店早餐', loc: '飯店餐廳', tag: '早餐' });
+
+    // 上午行程
+    if (i === 0) {
+       // 第一天通常是抵達
+    } else {
+       if (hasKids) {
+         activities.push({ id: `d${i}-2`, type: 'sightseeing', time: '10:30', title: `${dest.name} 海洋館/動物園`, loc: '市區', tag: '親子友善' });
+       } else if (hasSeniors) {
+         activities.push({ id: `d${i}-2`, type: 'sightseeing', time: '10:30', title: `${dest.name} 歷史古蹟巡禮`, loc: '老城區', tag: '平緩好走' });
+       } else {
+         activities.push({ id: `d${i}-2`, type: 'sightseeing', time: '10:30', title: `${dest.name} 熱門打卡景點`, loc: '市中心', tag: '觀光' });
+       }
+    }
+
+    // 午餐
+    activities.push({ id: `d${i}-3`, type: 'food', time: '12:30', title: hasKids ? '親子餐廳' : '當地特色午餐', loc: '必比登推薦', tag: '午餐' });
+
+    // 下午行程
+    if (i === 0) {
+      activities.push({ id: `d${i}-arrival`, type: 'flight', time: '15:00', title: '抵達並辦理入住', loc: '市區飯店', tag: 'Check-in' });
+    } else {
+       if (hasKids && i % 2 !== 0) { // 隔天安排輕鬆點
+          activities.push({ id: `d${i}-4`, type: 'other', time: '15:30', title: '飯店泳池/休息', loc: '飯店', tag: '休憩' });
+       } else {
+          activities.push({ id: `d${i}-4`, type: 'photo', time: '16:00', title: '購物與街道漫步', loc: '商業區', tag: '購物' });
+       }
+    }
+
+    // 晚餐
+    activities.push({ id: `d${i}-5`, type: 'food', time: '19:00', title: '精緻晚餐', loc: '景觀餐廳', tag: '晚餐' });
+
     return {
       day: i + 1,
       date: dateStr,
       fullDate: date,
       weather: i % 3 === 0 ? 'sunny' : 'cloudy',
-      title: i === 0 ? "抵達與安頓" : i === days - 1 ? "購買伴手禮與返程" : "城市探索與文化體驗",
+      title: i === 0 ? "抵達與安頓" : i === days - 1 ? "購買伴手禮與返程" : (hasKids ? "親子同樂日" : "城市探索"),
       emergency: dest.emergency,
-      activities: [
-        { id: `d${i}-1`, type: 'food', time: '09:00', title: '飯店早餐', loc: '飯店餐廳', tag: '早餐' },
-        { id: `d${i}-2`, type: 'sightseeing', time: '10:30', title: `${dest.name} 著名景點 ${i+1}`, loc: '市中心', tag: '觀光' },
-        { id: `d${i}-3`, type: 'food', time: '12:30', title: '當地特色午餐', loc: '必比登推薦', tag: '午餐' },
-        ...(i === 0 ? [{ id: `d${i}-arrival`, type: 'flight', time: '15:00', title: '辦理入住', loc: '市區飯店', tag: 'Check-in' }] : []),
-        { id: `d${i}-4`, type: 'photo', time: '16:00', title: '網美打卡點', loc: '舊城區', tag: '攝影' },
-        { id: `d${i}-5`, type: 'food', time: '19:00', title: '精緻晚餐', loc: '景觀餐廳', tag: '晚餐' },
-      ]
+      activities: activities
     };
   });
 };
@@ -130,7 +248,10 @@ const DonutChart = ({ data, total }) => {
 };
 
 const CustomCalendar = ({ selectedRange, onSelectRange }) => {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 9, 1)); // Default Oct 2025
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Clear time
+  
+  const [currentDate, setCurrentDate] = useState(new Date()); 
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -140,12 +261,16 @@ const CustomCalendar = ({ selectedRange, onSelectRange }) => {
   
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
-  const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const handlePrevMonth = () => {
+    const prev = new Date(year, month - 1, 1);
+    // 不允許回到今天之前的月份 (簡單邏輯)
+    if (prev.getMonth() < today.getMonth() && prev.getFullYear() === today.getFullYear()) return;
+    setCurrentDate(prev);
+  }
   const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   const handleToday = () => {
-    const now = new Date();
-    setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
-    onSelectRange([now, now]); // Select today
+    setCurrentDate(new Date());
+    onSelectRange([today, today]); 
   };
 
   const isSelected = (date) => {
@@ -156,9 +281,15 @@ const CustomCalendar = ({ selectedRange, onSelectRange }) => {
   
   const isRangeStart = (date) => selectedRange[0] && date.getTime() === selectedRange[0].getTime();
   const isRangeEnd = (date) => selectedRange[1] && date.getTime() === selectedRange[1].getTime();
+  
+  const isDisabled = (date) => {
+     return date < today;
+  }
 
   const handleDayClick = (day) => {
     const clickedDate = new Date(year, month, day);
+    if (isDisabled(clickedDate)) return;
+
     if (selectedRange.length === 0 || selectedRange.length === 2) {
       onSelectRange([clickedDate]); 
     } else {
@@ -203,18 +334,21 @@ const CustomCalendar = ({ selectedRange, onSelectRange }) => {
           const selected = isSelected(dateObj);
           const start = isRangeStart(dateObj);
           const end = isRangeEnd(dateObj);
+          const disabled = isDisabled(dateObj);
           const { lunar, holiday } = getLunarAndHoliday(year, month, day);
-          const isToday = new Date().toDateString() === dateObj.toDateString();
+          const isToday = today.toDateString() === dateObj.toDateString();
 
           return (
             <button 
               key={day}
               onClick={() => handleDayClick(day)}
+              disabled={disabled}
               className={`
                 h-14 md:h-16 rounded-lg flex flex-col items-center justify-center relative border transition-all overflow-hidden
                 ${(start || end) ? 'bg-rose-500 text-white border-rose-600 shadow-md z-10' : ''}
                 ${selected && !start && !end ? 'bg-rose-50 border-rose-100 text-rose-800' : ''}
-                ${!selected ? 'bg-white text-gray-700 border-gray-100 hover:border-rose-300' : ''}
+                ${!selected && !disabled ? 'bg-white text-gray-700 border-gray-100 hover:border-rose-300' : ''}
+                ${disabled ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed' : ''}
                 ${isToday && !selected ? 'ring-2 ring-rose-400 ring-offset-1' : ''}
               `}
             >
@@ -236,7 +370,7 @@ const CustomCalendar = ({ selectedRange, onSelectRange }) => {
 // --- Main App ---
 
 export default function TravelApp() {
-  const [view, setView] = useState('home'); // 'home' | 'wizard' | 'dashboard' | 'print'
+  const [view, setView] = useState('home'); 
   const [trips, setTrips] = useState([]);
   const [currentTripId, setCurrentTripId] = useState(null);
 
@@ -244,19 +378,23 @@ export default function TravelApp() {
   const [step, setStep] = useState(1);
   const [w_origin, setW_Origin] = useState("台北 (TPE)");
   const [w_dest, setW_Dest] = useState(null);
-  const [w_range, setW_Range] = useState([new Date(2025, 9, 15), new Date(2025, 9, 20)]);
-  const [w_travelers, setW_Travelers] = useState([{ id: '1', name: '我', docId: '', phone: '' }]);
+  const [w_range, setW_Range] = useState([new Date(), new Date()]); // Default today
+  const [w_travelers, setW_Travelers] = useState([{ id: '1', name: '我', type: 'adult', docId: '', phone: '' }]);
   const [w_pref, setW_Pref] = useState({ flight: 'direct', hotel: '4star', purpose: 'leisure' });
 
   // Dashboard Modal & Edit State
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [newActivity, setNewActivity] = useState({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
+  // editingActivityId 為 null 代表新增，否則代表編輯
+  const [editingActivityId, setEditingActivityId] = useState(null); 
+  const [activityForm, setActivityForm] = useState({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
+  
   const [targetDay, setTargetDay] = useState(1);
   const [newItemText, setNewItemText] = useState("");
   const [newItemOwner, setNewItemOwner] = useState("all");
-  const [editingItem, setEditingItem] = useState(null); // { category, id, text, owner }
+  const [editingItem, setEditingItem] = useState(null);
 
   const currentTrip = useMemo(() => trips.find(t => t.id === currentTripId), [trips, currentTripId]);
+  const isLocked = currentTrip?.isLocked || false;
 
   // --- Actions ---
 
@@ -266,27 +404,27 @@ export default function TravelApp() {
     const endDate = w_range.length === 2 ? w_range[1] : w_range[0];
     const duration = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
     
+    // Calculate Budget
+    const budget = calculateSmartBudget(w_dest, duration, w_travelers, w_pref, startDate);
+
+    // Generate Packing List
+    const packingList = generateSmartPackingList(duration, w_travelers, w_dest);
+
+    // Generate Itinerary
+    const itinerary = generateMockItinerary(duration, w_dest, startDate, w_travelers);
+
     const newTrip = {
       id: Date.now().toString(),
       status: 'planned',
+      isLocked: false, // Default unlocked
       destination: w_dest,
       origin: w_origin,
       dateRange: { start: startDate, end: endDate },
       duration: duration,
       travelers: w_travelers,
-      budget: {
-        total: 85000 * w_travelers.length, // Simple logic
-        spent: 0,
-        breakdown: [
-           { name: "機票交通", value: 25000 * w_travelers.length, color: "#60A5FA" },
-           { name: "住宿飯店", value: 30000, color: "#F472B6" },
-           { name: "餐飲美食", value: 15000 * w_travelers.length, color: "#34D399" },
-           { name: "購物服飾", value: 10000, color: "#FBBF24" },
-           { name: "門票雜支", value: 5000, color: "#A78BFA" },
-        ]
-      },
-      itinerary: generateMockItinerary(duration, w_dest, startDate),
-      packingList: JSON.parse(JSON.stringify(INITIAL_PACKING_TEMPLATE)),
+      budget: budget,
+      itinerary: itinerary,
+      packingList: packingList,
       preferences: w_pref
     };
 
@@ -296,6 +434,12 @@ export default function TravelApp() {
     setStep(1); 
   };
 
+  const toggleTripLock = () => {
+    if (!currentTrip) return;
+    const updatedTrips = trips.map(t => t.id === currentTripId ? { ...t, isLocked: !t.isLocked } : t);
+    setTrips(updatedTrips);
+  };
+
   const updateTraveler = (index, field, value) => {
     const updated = [...w_travelers];
     updated[index] = { ...updated[index], [field]: value };
@@ -303,7 +447,7 @@ export default function TravelApp() {
   };
 
   const addTraveler = () => {
-    setW_Travelers([...w_travelers, { id: Date.now().toString(), name: `旅伴 ${w_travelers.length + 1}`, docId: '', phone: '' }]);
+    setW_Travelers([...w_travelers, { id: Date.now().toString(), name: `旅伴 ${w_travelers.length + 1}`, type: 'adult', docId: '', phone: '' }]);
   };
 
   const removeTraveler = (index) => {
@@ -312,16 +456,44 @@ export default function TravelApp() {
     }
   };
 
-  const handleAddActivity = () => {
-    if (!currentTrip || !newActivity.title) return;
+  // Activity Actions
+  const openAddActivity = (day) => {
+    if (isLocked) return;
+    setTargetDay(day);
+    setEditingActivityId(null);
+    setActivityForm({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
+    setShowActivityModal(true);
+  };
+
+  const openEditActivity = (day, activity) => {
+    if (isLocked) return;
+    setTargetDay(day);
+    setEditingActivityId(activity.id);
+    setActivityForm({ ...activity });
+    setShowActivityModal(true);
+  };
+
+  const handleSaveActivity = () => {
+    if (!currentTrip || !activityForm.title) return;
+    
     const updatedTrips = trips.map(t => {
       if (t.id === currentTrip.id) {
         const updatedItinerary = t.itinerary.map(day => {
           if (day.day === targetDay) {
-            return {
-              ...day,
-              activities: [...day.activities, { ...newActivity, id: Date.now().toString() }].sort((a, b) => a.time.localeCompare(b.time))
-            };
+            let newActivities = [...day.activities];
+            
+            if (editingActivityId) {
+              // Edit existing
+              newActivities = newActivities.map(act => act.id === editingActivityId ? { ...activityForm, id: editingActivityId } : act);
+            } else {
+              // Add new
+              newActivities.push({ ...activityForm, id: Date.now().toString() });
+            }
+            
+            // Re-sort by time
+            newActivities.sort((a, b) => a.time.localeCompare(b.time));
+
+            return { ...day, activities: newActivities };
           }
           return day;
         });
@@ -331,11 +503,29 @@ export default function TravelApp() {
     });
     setTrips(updatedTrips);
     setShowActivityModal(false);
-    setNewActivity({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
   };
 
+  const handleDeleteActivity = (dayNum, actId) => {
+     if (isLocked) return;
+     if (!confirm("確定要刪除此活動嗎？")) return;
+     const updatedTrips = trips.map(t => {
+      if (t.id === currentTrip.id) {
+        const updatedItinerary = t.itinerary.map(day => {
+          if (day.day === dayNum) {
+            return { ...day, activities: day.activities.filter(a => a.id !== actId) };
+          }
+          return day;
+        });
+        return { ...t, itinerary: updatedItinerary };
+      }
+      return t;
+    });
+    setTrips(updatedTrips);
+  };
+
+  // Packing Actions (Similar logic, check isLocked)
   const handleAddItem = (category) => {
-    if (!currentTrip || !newItemText) return;
+    if (!currentTrip || !newItemText || isLocked) return;
     const updatedTrips = trips.map(t => {
       if (t.id === currentTrip.id) {
         const updatedList = { ...t.packingList };
@@ -355,8 +545,9 @@ export default function TravelApp() {
     setNewItemText("");
   };
 
+  // ... (UpdateItem, DeleteItem, ToggleCheck logic same as before but adding isLocked check)
   const handleUpdateItem = () => {
-    if (!currentTrip || !editingItem) return;
+    if (!currentTrip || !editingItem || isLocked) return;
     const updatedTrips = trips.map(t => {
       if (t.id === currentTrip.id) {
         const updatedList = { ...t.packingList };
@@ -372,6 +563,7 @@ export default function TravelApp() {
   };
 
   const handleDeleteItem = (category, id) => {
+    if (isLocked) return;
     const updatedTrips = trips.map(t => {
       if (t.id === currentTrip.id) {
         const updatedList = { ...t.packingList };
@@ -385,6 +577,8 @@ export default function TravelApp() {
   }
 
   const togglePackingCheck = (category, id) => {
+    // Checkbox state typically CAN be toggled even if locked? Or maybe not? Assuming can check items on the go.
+    // Let's allow checking items even if locked (for travel usage), but adding/editing is disabled.
     const updatedTrips = trips.map(t => {
       if (t.id === currentTrip.id) {
         const updatedList = { ...t.packingList };
@@ -434,11 +628,16 @@ export default function TravelApp() {
               </div>
             ) : (
               trips.map(trip => (
-                <div key={trip.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all overflow-hidden group cursor-pointer" onClick={() => { setCurrentTripId(trip.id); setView('dashboard'); }}>
+                <div key={trip.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all overflow-hidden group cursor-pointer relative" onClick={() => { setCurrentTripId(trip.id); setView('dashboard'); }}>
                   <div className={`h-32 bg-gradient-to-br ${trip.destination.image} relative`}>
                     <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white text-xs px-2 py-1 rounded-lg font-bold">
                       {trip.duration} 天
                     </div>
+                    {trip.isLocked && (
+                      <div className="absolute top-4 left-4 bg-black/30 backdrop-blur-md text-white p-1 rounded-full">
+                         <Lock size={12} />
+                      </div>
+                    )}
                   </div>
                   <div className="p-5">
                     <h3 className="text-xl font-bold text-gray-800 mb-1">{trip.destination.name}</h3>
@@ -464,6 +663,7 @@ export default function TravelApp() {
     );
   }
 
+  // WIZARD VIEW
   if (view === 'wizard') {
     return (
       <div className="min-h-screen bg-gray-50 flex justify-center py-4 md:py-12 px-2 md:px-4 font-sans">
@@ -494,7 +694,7 @@ export default function TravelApp() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-2">目的地 (熱門城市)</label>
+                  <label className="block font-bold text-gray-700 mb-2">目的地</label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {MOCK_DESTINATIONS.map(dest => (
                       <div 
@@ -537,16 +737,24 @@ export default function TravelApp() {
                           <input type="text" value={t.name} onChange={(e) => updateTraveler(idx, 'name', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="姓名" />
                         </div>
                         <div>
+                          <label className="text-xs text-gray-500 block mb-1">人員類型 (影響預算/行程)</label>
+                          <select 
+                            value={t.type} 
+                            onChange={(e) => updateTraveler(idx, 'type', e.target.value)} 
+                            className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400"
+                          >
+                            {TRAVELER_TYPES.map(type => (
+                              <option key={type.id} value={type.id}>{type.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
                           <label className="text-xs text-gray-500 block mb-1">證件號碼</label>
                           <input type="text" value={t.docId} onChange={(e) => updateTraveler(idx, 'docId', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="A123456789" />
                         </div>
                         <div>
                           <label className="text-xs text-gray-500 block mb-1">聯絡電話</label>
                           <input type="text" value={t.phone} onChange={(e) => updateTraveler(idx, 'phone', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="0912-345-678" />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500 block mb-1">房間分配 (選填)</label>
-                          <input type="text" value={t.room} onChange={(e) => updateTraveler(idx, 'room', e.target.value)} className="w-full p-2 bg-gray-50 rounded border border-gray-200 outline-none focus:border-rose-400" placeholder="Room 101" />
                         </div>
                       </div>
                       {idx > 0 && (
@@ -566,12 +774,13 @@ export default function TravelApp() {
                    <Sparkles size={48} />
                  </div>
                  <h2 className="text-2xl font-bold text-gray-800 mb-2">準備生成行程</h2>
-                 <p className="text-gray-500 mb-8">AI 將根據 {w_travelers.length} 人的需求，規劃 {w_dest?.name} 之旅。</p>
+                 <p className="text-gray-500 mb-8">AI 將根據 {w_travelers.length} 人的需求，為您規劃旅程。</p>
                  
                  <div className="bg-gray-50 p-6 rounded-2xl text-left max-w-sm mx-auto mb-8 border border-gray-200">
                    <p className="flex justify-between mb-2"><span className="text-gray-500">日期</span> <span className="font-bold">{w_range[0].toLocaleDateString()} 起</span></p>
                    <p className="flex justify-between mb-2"><span className="text-gray-500">人數</span> <span className="font-bold">{w_travelers.length} 人</span></p>
-                   <p className="flex justify-between"><span className="text-gray-500">預算預估</span> <span className="font-bold text-rose-500">${(85000 * w_travelers.length).toLocaleString()}</span></p>
+                   {/* 預覽預算 (這裡只是簡單顯示，實際已由函式計算) */}
+                   <p className="flex justify-between"><span className="text-gray-500">預算預估</span> <span className="font-bold text-rose-500">AI 計算中...</span></p>
                  </div>
               </div>
             )}
@@ -620,8 +829,14 @@ export default function TravelApp() {
              </nav>
            </div>
 
-           <div className="mt-auto p-4 border-t border-gray-100">
-             <button onClick={() => setView('home')} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 px-2"><Home size={18}/> 回首頁</button>
+           <div className="mt-auto p-4 border-t border-gray-100 space-y-2">
+             <button 
+                onClick={toggleTripLock} 
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-bold transition-all ${isLocked ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+             >
+                {isLocked ? <><Lock size={16}/> 行程已鎖定</> : <><Unlock size={16}/> 鎖定行程</>}
+             </button>
+             <button onClick={() => setView('home')} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 px-2 justify-center w-full"><Home size={18}/> 回首頁</button>
            </div>
         </aside>
 
@@ -636,7 +851,10 @@ export default function TravelApp() {
         <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto pb-24 md:pb-8">
           <header className="flex flex-col md:flex-row justify-between items-start mb-6 md:mb-8 gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-1">{currentTrip.destination.name} 之旅</h1>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{currentTrip.destination.name} 之旅</h1>
+                {isLocked && <span className="bg-gray-800 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1"><Lock size={10}/> Read Only</span>}
+              </div>
               <p className="text-gray-500 flex items-center gap-2 text-sm md:text-base">
                 <Calendar size={16}/> {currentTrip.dateRange.start.toLocaleDateString()} - {currentTrip.dateRange.end.toLocaleDateString()}
                 <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
@@ -644,6 +862,12 @@ export default function TravelApp() {
               </p>
             </div>
             <div className="flex gap-3 w-full md:w-auto">
+               <button 
+                  onClick={toggleTripLock} 
+                  className={`flex-1 md:flex-none md:hidden bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 ${isLocked ? 'bg-gray-800 text-white' : ''}`}
+                >
+                  {isLocked ? <Lock size={16}/> : <Unlock size={16}/>}
+               </button>
               <button onClick={() => setView('print')} className="flex-1 md:flex-none justify-center bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-50"><Printer size={18}/> 匯出 PDF</button>
             </div>
           </header>
@@ -673,7 +897,7 @@ export default function TravelApp() {
                   
                   <div className="p-4 space-y-4">
                     {day.activities.map((act) => (
-                      <div key={act.id} className="flex gap-4 group">
+                      <div key={act.id} className="flex gap-4 group relative">
                         <div className="flex flex-col items-center pt-1 w-12 shrink-0">
                            <span className="text-xs font-bold text-gray-500">{act.time}</span>
                            <div className="w-px h-full bg-gray-200 my-1 group-last:hidden"></div>
@@ -682,20 +906,30 @@ export default function TravelApp() {
                            <div className={`p-2 rounded-lg ${act.type === 'flight' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
                              {act.type === 'flight' ? <Plane size={18}/> : act.type === 'hotel' ? <Hotel size={18}/> : act.type === 'food' ? <Utensils size={18}/> : <Camera size={18}/>}
                            </div>
-                           <div className="min-w-0">
+                           <div className="min-w-0 flex-1">
                              <h4 className="font-bold text-gray-800 truncate">{act.title}</h4>
                              <p className="text-sm text-gray-500 flex items-center gap-1 truncate"><MapPin size={12}/> {act.loc}</p>
                            </div>
                            <span className="ml-auto text-xs bg-gray-100 px-2 py-1 rounded text-gray-500 whitespace-nowrap">{act.tag}</span>
                         </div>
+                        
+                        {/* Edit Controls (Only visible if unlocked) */}
+                        {!isLocked && (
+                          <div className="absolute right-2 top-2 hidden group-hover:flex gap-1 bg-white shadow-md rounded-lg p-1 border border-gray-100">
+                             <button onClick={() => openEditActivity(day.day, act)} className="p-1 text-gray-400 hover:text-blue-500"><Edit3 size={14}/></button>
+                             <button onClick={() => handleDeleteActivity(day.day, act.id)} className="p-1 text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+                          </div>
+                        )}
                       </div>
                     ))}
-                    <button 
-                      onClick={() => { setTargetDay(day.day); setShowActivityModal(true); }}
-                      className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-rose-500 hover:border-rose-200 font-medium flex items-center justify-center gap-2 transition-all"
-                    >
-                      <Plus size={16}/> 新增活動
-                    </button>
+                    {!isLocked && (
+                      <button 
+                        onClick={() => openAddActivity(day.day)}
+                        className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-rose-500 hover:border-rose-200 font-medium flex items-center justify-center gap-2 transition-all"
+                      >
+                        <Plus size={16}/> 新增活動
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -704,12 +938,13 @@ export default function TravelApp() {
             {/* Right Col: Budget & Packing */}
             <div className="space-y-6">
                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><PieChartIcon size={18} className="text-rose-500"/> 預算概況</h3>
+                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><PieChartIcon size={18} className="text-rose-500"/> 預算概況 (AI 估算)</h3>
                  <DonutChart data={currentTrip.budget.breakdown} total={currentTrip.budget.total} />
+                 <p className="text-xs text-center text-gray-400 mt-4">*已包含兒童/幼兒票價優惠及旺季加成</p>
                </div>
 
                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> 行李清單</h3>
+                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> 行李清單 (AI 生成)</h3>
                  <div className="space-y-4">
                    {Object.entries(currentTrip.packingList).map(([cat, items]) => (
                      <div key={cat}>
@@ -729,34 +964,37 @@ export default function TravelApp() {
                                  <span className="text-[10px] text-gray-400">{getTravelerName(item.owner)}</span>
                                </div>
                              </div>
-                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                               <button onClick={() => setEditingItem({ category: cat, id: item.id, text: item.item, owner: item.owner })} className="text-gray-400 hover:text-blue-500"><Edit3 size={14}/></button>
-                               <button onClick={() => handleDeleteItem(cat, item.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
-                             </div>
+                             {!isLocked && (
+                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button onClick={() => setEditingItem({ category: cat, id: item.id, text: item.item, owner: item.owner })} className="text-gray-400 hover:text-blue-500"><Edit3 size={14}/></button>
+                                 <button onClick={() => handleDeleteItem(cat, item.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+                               </div>
+                             )}
                            </div>
                          ))}
                        </div>
                        
-                       {/* Add Item Input */}
-                       <div className="mt-2 flex gap-2 items-center bg-gray-50 p-2 rounded-lg">
-                          <input 
-                            type="text" 
-                            placeholder="新增物品..." 
-                            className="text-xs bg-transparent w-full outline-none"
-                            value={newItemText}
-                            onChange={(e) => setNewItemText(e.target.value)}
-                            onKeyDown={(e) => { if(e.key === 'Enter') handleAddItem(cat); }}
-                          />
-                          <select 
-                            className="text-[10px] border-none bg-white rounded px-1 py-0.5 outline-none max-w-[60px]"
-                            value={newItemOwner}
-                            onChange={(e) => setNewItemOwner(e.target.value)}
-                          >
-                            <option value="all">共用</option>
-                            {currentTrip.travelers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                          </select>
-                          <button onClick={() => handleAddItem(cat)} className="text-blue-500 shrink-0"><Plus size={16}/></button>
-                       </div>
+                       {!isLocked && (
+                         <div className="mt-2 flex gap-2 items-center bg-gray-50 p-2 rounded-lg">
+                            <input 
+                              type="text" 
+                              placeholder="新增物品..." 
+                              className="text-xs bg-transparent w-full outline-none"
+                              value={newItemText}
+                              onChange={(e) => setNewItemText(e.target.value)}
+                              onKeyDown={(e) => { if(e.key === 'Enter') handleAddItem(cat); }}
+                            />
+                            <select 
+                              className="text-[10px] border-none bg-white rounded px-1 py-0.5 outline-none max-w-[60px]"
+                              value={newItemOwner}
+                              onChange={(e) => setNewItemOwner(e.target.value)}
+                            >
+                              <option value="all">共用</option>
+                              {currentTrip.travelers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                            <button onClick={() => handleAddItem(cat)} className="text-blue-500 shrink-0"><Plus size={16}/></button>
+                         </div>
+                       )}
                      </div>
                    ))}
                  </div>
@@ -770,28 +1008,28 @@ export default function TravelApp() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white p-6 rounded-2xl w-full max-w-md animate-in zoom-in-95 shadow-2xl">
                <div className="flex justify-between items-center mb-4">
-                 <h3 className="font-bold text-lg">新增活動 - Day {targetDay}</h3>
+                 <h3 className="font-bold text-lg">{editingActivityId ? '編輯活動' : '新增活動'} - Day {targetDay}</h3>
                  <button onClick={() => setShowActivityModal(false)}><X size={20} className="text-gray-400"/></button>
                </div>
                <div className="space-y-3">
-                 <input className="w-full p-3 border rounded-xl outline-none focus:border-rose-500" placeholder="活動標題 (如: 晚餐)" value={newActivity.title} onChange={e => setNewActivity({...newActivity, title: e.target.value})} />
+                 <input className="w-full p-3 border rounded-xl outline-none focus:border-rose-500" placeholder="活動標題 (如: 晚餐)" value={activityForm.title} onChange={e => setActivityForm({...activityForm, title: e.target.value})} />
                  <div className="flex gap-2">
-                   <input className="w-1/3 p-3 border rounded-xl outline-none focus:border-rose-500" type="time" value={newActivity.time} onChange={e => setNewActivity({...newActivity, time: e.target.value})} />
-                   <input className="flex-1 p-3 border rounded-xl outline-none focus:border-rose-500" placeholder="地點" value={newActivity.loc} onChange={e => setNewActivity({...newActivity, loc: e.target.value})} />
+                   <input className="w-1/3 p-3 border rounded-xl outline-none focus:border-rose-500" type="time" value={activityForm.time} onChange={e => setActivityForm({...activityForm, time: e.target.value})} />
+                   <input className="flex-1 p-3 border rounded-xl outline-none focus:border-rose-500" placeholder="地點" value={activityForm.loc} onChange={e => setActivityForm({...activityForm, loc: e.target.value})} />
                  </div>
                  <div className="flex gap-2">
-                    <select className="p-3 border rounded-xl flex-1 outline-none focus:border-rose-500" value={newActivity.type} onChange={e => setNewActivity({...newActivity, type: e.target.value})}>
+                    <select className="p-3 border rounded-xl flex-1 outline-none focus:border-rose-500" value={activityForm.type} onChange={e => setActivityForm({...activityForm, type: e.target.value})}>
                       <option value="food">美食</option>
                       <option value="sightseeing">觀光</option>
                       <option value="photo">攝影</option>
                       <option value="other">其他</option>
                     </select>
-                    <input className="flex-1 p-3 border rounded-xl outline-none focus:border-rose-500" placeholder="標籤 (如: 必吃)" value={newActivity.tag} onChange={e => setNewActivity({...newActivity, tag: e.target.value})} />
+                    <input className="flex-1 p-3 border rounded-xl outline-none focus:border-rose-500" placeholder="標籤 (如: 必吃)" value={activityForm.tag} onChange={e => setActivityForm({...activityForm, tag: e.target.value})} />
                  </div>
                </div>
                <div className="mt-6 flex justify-end gap-2">
                  <button onClick={() => setShowActivityModal(false)} className="px-6 py-2 rounded-xl text-gray-500 font-medium hover:bg-gray-100">取消</button>
-                 <button onClick={handleAddActivity} className="px-6 py-2 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 shadow-lg shadow-rose-200">確認新增</button>
+                 <button onClick={handleSaveActivity} className="px-6 py-2 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 shadow-lg shadow-rose-200">儲存</button>
                </div>
             </div>
           </div>
@@ -829,7 +1067,7 @@ export default function TravelApp() {
     );
   }
 
-  // ... (Print view remains similar, adjusting for mobile hidden)
+  // Print view (no logic changes needed, just inherits currentTrip)
   if (view === 'print' && currentTrip) {
      return (
        <div className="min-h-screen bg-gray-100 p-0 md:p-8 flex justify-center pb-24 md:pb-8">
@@ -868,20 +1106,25 @@ export default function TravelApp() {
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="p-2">姓名</th>
+                    <th className="p-2">類型</th>
                     <th className="p-2">證件號碼</th>
                     <th className="p-2">電話</th>
                     <th className="p-2">房號</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {currentTrip.travelers.map((t, i) => (
-                    <tr key={i} className="border-b border-gray-100">
-                      <td className="p-2 font-medium">{t.name}</td>
-                      <td className="p-2">{t.docId || '-'}</td>
-                      <td className="p-2">{t.phone || '-'}</td>
-                      <td className="p-2">{t.room || '-'}</td>
-                    </tr>
-                  ))}
+                  {currentTrip.travelers.map((t, i) => {
+                    const typeLabel = TRAVELER_TYPES.find(type => type.id === t.type)?.label || '成人';
+                    return (
+                      <tr key={i} className="border-b border-gray-100">
+                        <td className="p-2 font-medium">{t.name}</td>
+                        <td className="p-2 text-gray-500">{typeLabel}</td>
+                        <td className="p-2">{t.docId || '-'}</td>
+                        <td className="p-2">{t.phone || '-'}</td>
+                        <td className="p-2">{t.room || '-'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
