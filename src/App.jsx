@@ -7,22 +7,32 @@ import {
   Briefcase, Sparkles, Sun, CloudRain,
   ArrowRight, Users, Home, Printer, Phone,
   Ambulance, Car, X, FileText, ChevronLeft, ChevronRight,
-  Baby, Accessibility, ShoppingBag, Train, DollarSign, Info, Cloud
+  Baby, Accessibility, ShoppingBag, Train, DollarSign, Info, Cloud, AlertCircle
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc } from 'firebase/firestore';
 
-// --- Firebase Init ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// --- Firebase Initialization (Safe Mode) ---
+let app, auth, db;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-// --- Mock Data (Enhanced) ---
+try {
+  if (typeof __firebase_config !== 'undefined') {
+    const firebaseConfig = JSON.parse(__firebase_config);
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  } else {
+    console.warn("Firebase config not found. Running in offline/demo mode.");
+  }
+} catch (e) {
+  console.error("Firebase initialization error:", e);
+}
+
+// --- Mock Data (Restored & Enhanced) ---
 
 const MOCK_DESTINATIONS = [
   { 
@@ -33,6 +43,11 @@ const MOCK_DESTINATIONS = [
   { 
     id: 'tokyo', name: '日本 東京 (Tokyo)', image: 'from-purple-500 to-pink-500', currency: 'JPY',
     baseFlight: 4000, baseDailyCost: 1000, // HKD
+    emergency: { police: '110', ambulance: '119', apps: ['GO', 'Uber'] }
+  },
+  { 
+    id: 'osaka', name: '日本 大阪 (Osaka)', image: 'from-blue-400 to-indigo-500', currency: 'JPY',
+    baseFlight: 3800, baseDailyCost: 900, // HKD
     emergency: { police: '110', ambulance: '119', apps: ['GO', 'Uber'] }
   },
   { 
@@ -60,9 +75,14 @@ const MOCK_DESTINATIONS = [
     baseFlight: 1200, baseDailyCost: 600, // HKD
     emergency: { police: '110', ambulance: '119', apps: ['Uber', '55688'] }
   },
+  { 
+    id: 'shanghai', name: '中國 上海 (Shanghai)', image: 'from-red-500 to-yellow-500', currency: 'CNY',
+    baseFlight: 1800, baseDailyCost: 800, // HKD
+    emergency: { police: '110', ambulance: '120', apps: ['DiDi'] }
+  },
 ];
 
-const POPULAR_ORIGINS = ["香港 (HKG)", "九龍 (Kowloon)", "澳門 (MFM)", "台北 (TPE)", "廣州 (CAN)"];
+const POPULAR_ORIGINS = ["香港 (HKG)", "九龍 (Kowloon)", "澳門 (MFM)", "台北 (TPE)", "廣州 (CAN)", "深圳 (SZX)"];
 
 const TRAVELER_TYPES = [
   { id: 'adult', label: '成人', icon: Users, costFactor: 1 },
@@ -113,7 +133,6 @@ const getLunarAndHoliday = (year, month, day) => {
   return { lunar, holiday };
 };
 
-// --- Smart Budget AI ---
 const calculateSmartBudget = (dest, duration, travelers, pref, startDate) => {
   if (!dest) return { total: 0, breakdown: [] };
 
@@ -123,29 +142,24 @@ const calculateSmartBudget = (dest, duration, travelers, pref, startDate) => {
 
   let seasonMultiplier = 1.0;
   const month = new Date(startDate).getMonth();
-  if (month === 0 || month === 6 || month === 11 || month === 3) seasonMultiplier = 1.3; // 旺季
+  if (month === 0 || month === 6 || month === 11 || month === 3) seasonMultiplier = 1.3;
 
   let budget = { clothing: 0, food: 0, housing: 0, transport: 0 };
 
   travelers.forEach(t => {
     const type = TRAVELER_TYPES.find(tp => tp.id === t.type) || TRAVELER_TYPES[0];
-    
-    // 行
     const flightCost = dest.baseFlight * type.costFactor * flightPref.multiplier * seasonMultiplier;
-    const localTransport = 100 * duration * type.costFactor; // HKD daily
+    const localTransport = 100 * duration * type.costFactor; 
     budget.transport += flightCost + localTransport;
 
-    // 食
-    const dailyFood = 400 * type.costFactor; // HKD daily
+    const dailyFood = 400 * type.costFactor; 
     budget.food += dailyFood * duration;
 
-    // 衣/雜
     let shoppingBase = 500 * duration;
     if (type.id === 'infant') shoppingBase = 100 * duration; 
     budget.clothing += shoppingBase;
   });
 
-  // 住
   const roomsNeeded = Math.ceil(travelers.filter(t => t.type !== 'infant').length / 2);
   const dailyRoomRate = (dest.baseDailyCost * 1.5) * hotelPref.multiplier * seasonMultiplier;
   budget.housing += dailyRoomRate * duration * roomsNeeded;
@@ -221,7 +235,7 @@ const generateMockItinerary = (days, dest, startDate, travelers, pref) => {
     return {
       day: i + 1,
       date: dateStr,
-      fullDate: date.toISOString(), // Store as string for Firestore
+      fullDate: date.toISOString(), 
       weather: i % 3 === 0 ? 'sunny' : 'cloudy',
       title: i === 0 ? "出發" : "旅程",
       emergency: dest.emergency,
@@ -365,6 +379,7 @@ export default function TravelApp() {
   const [view, setView] = useState('home'); 
   const [trips, setTrips] = useState([]);
   const [currentTripId, setCurrentTripId] = useState(null);
+  const [authError, setAuthError] = useState(false);
 
   // Wizard State
   const [step, setStep] = useState(1);
@@ -386,11 +401,24 @@ export default function TravelApp() {
 
   // --- Authentication & Data Sync ---
   useEffect(() => {
+    if (!auth) {
+      setAuthError(true);
+      return;
+    }
+
     const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      } else {
-        await signInAnonymously(auth);
+      try {
+        // 重要：設置為記憶體持久化，防止在預覽環境/Iframe 中因存取 Storage 報錯
+        await setPersistence(auth, inMemoryPersistence);
+        
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Auth initialization failed:", err);
+        setAuthError(true);
       }
     };
     initAuth();
@@ -399,13 +427,11 @@ export default function TravelApp() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    // Strict path: /artifacts/{appId}/users/{userId}/trips
+    if (!user || !db) return;
     const tripsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'trips');
     const unsubscribe = onSnapshot(tripsRef, (snapshot) => {
       const tripsData = snapshot.docs.map(doc => {
         const data = doc.data();
-        // Restore dates from string/timestamp
         return {
           ...data,
           dateRange: {
@@ -420,9 +446,19 @@ export default function TravelApp() {
   }, [user]);
 
   const saveTripToCloud = async (tripData) => {
-    if (!user) return;
+    if (!user || !db) {
+      // 本地模式 Fallback
+      if (!db) {
+        const existing = trips.find(t => t.id === tripData.id);
+        if (existing) {
+          setTrips(trips.map(t => t.id === tripData.id ? tripData : t));
+        } else {
+          setTrips([...trips, tripData]);
+        }
+      }
+      return;
+    }
     const tripRef = doc(db, 'artifacts', appId, 'users', user.uid, 'trips', tripData.id);
-    // Convert dates to string for storage
     const storageData = {
       ...tripData,
       dateRange: {
@@ -434,7 +470,10 @@ export default function TravelApp() {
   };
 
   const deleteTripFromCloud = async (tripId) => {
-    if (!user) return;
+    if (!user || !db) {
+      setTrips(trips.filter(t => t.id !== tripId));
+      return;
+    }
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'trips', tripId));
   };
 
@@ -553,14 +592,20 @@ export default function TravelApp() {
             </button>
           </header>
           
-          {!user ? (
+          {(!user && !authError) ? (
             <div className="text-center py-20 text-gray-400">正在連接雲端資料庫...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {authError && (
+                <div className="col-span-full mb-4 bg-yellow-50 text-yellow-800 p-4 rounded-lg flex items-center gap-2">
+                  <AlertCircle size={20}/>
+                  <span>目前為離線/演示模式。行程將暫時儲存於本機記憶體中，重新整理後可能會消失。</span>
+                </div>
+              )}
               {trips.length === 0 ? (
                  <div className="col-span-full text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200">
-                   <h3 className="text-xl font-bold text-gray-400">雲端暫無行程</h3>
-                   <p className="text-gray-400 mt-2">您的行程將會自動同步至此</p>
+                   <h3 className="text-xl font-bold text-gray-400">尚無行程</h3>
+                   <p className="text-gray-400 mt-2">開始規劃您的第一次旅程吧！</p>
                  </div>
               ) : trips.map(trip => {
                  const actual = calculateActualCost(trip.itinerary);
