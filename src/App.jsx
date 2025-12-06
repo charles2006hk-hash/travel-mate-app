@@ -7,10 +7,6 @@ import {
   Briefcase, Sparkles, Moon, Sun, CloudRain,
   ArrowRight, Users, Star, ArrowLeft, Home
 } from 'lucide-react';
-import { 
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid
-} from 'recharts';
 
 // --- 模擬 AI 生成的數據 ---
 
@@ -83,6 +79,36 @@ const GENERATED_PACKING = {
     { id: 't2', item: "相機 & 記憶卡", checked: false, quantity: "1組" },
     { id: 't3', item: "萬用轉接頭", checked: false, quantity: "1個" },
   ]
+};
+
+// --- Helper for Custom Donut Chart ---
+const DonutChart = ({ data, total }) => {
+  let accumulatedDeg = 0;
+  const gradients = data.map((item) => {
+    const deg = (item.value / total) * 360;
+    const str = `${item.color} ${accumulatedDeg}deg ${accumulatedDeg + deg}deg`;
+    accumulatedDeg += deg;
+    return str;
+  }).join(', ');
+
+  const conicStyle = {
+    background: `conic-gradient(${gradients})`,
+    borderRadius: '50%',
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  };
+
+  return (
+    <div className="relative w-64 h-64 mx-auto">
+      <div style={conicStyle as any} className="shadow-xl"></div>
+      {/* Inner White Circle to make it a donut */}
+      <div className="absolute inset-0 m-auto w-40 h-40 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+        <span className="text-gray-400 text-sm font-medium">總預算</span>
+        <span className="text-xl font-bold text-gray-800">${total.toLocaleString()}</span>
+      </div>
+    </div>
+  );
 };
 
 // --- Custom Calendar Component ---
@@ -530,26 +556,10 @@ export default function TravelAIPlanner() {
 
           {activeTab === 'budget' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
                   <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><PieChartIcon size={20} className="text-rose-500"/> 預算分佈 (衣食住行)</h3>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={GENERATED_BUDGET}
-                          innerRadius={80}
-                          outerRadius={120}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {GENERATED_BUDGET.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip formatter={(value) => `$${value.toLocaleString()}`} />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
+                  <div className="flex-1 flex items-center justify-center py-6">
+                     <DonutChart data={GENERATED_BUDGET} total={GENERATED_TRIP_DATA.totalBudget} />
                   </div>
                </div>
 
