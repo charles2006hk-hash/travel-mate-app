@@ -1,86 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Map, Calendar, CreditCard, CheckSquare, 
-  Plane, Hotel, Coffee, Camera, Utensils, 
-  Plus, Trash2, User, Settings,
-  MapPin, DollarSign, PieChart as PieChartIcon,
+  Map, Calendar, CheckSquare, 
+  Plane, Hotel, Camera, Utensils, 
+  Plus, Trash2, 
+  MapPin, PieChart as PieChartIcon,
   Briefcase, Sparkles, Sun, CloudRain,
-  ArrowRight, Users, Star, Home, Printer, Phone,
-  Ambulance, Car, Save, Edit3, X, FileText
+  ArrowRight, Users, Home, Printer, Phone,
+  Ambulance, Car, X, FileText
 } from 'lucide-react';
-
-// --- 資料結構定義 ---
-
-type Traveler = {
-  id: string;
-  name: string;
-  docId: string; // 證件號碼
-  phone: string;
-  room?: string;
-};
-
-type Activity = {
-  id: string;
-  type: 'flight' | 'transport' | 'hotel' | 'sightseeing' | 'food' | 'photo' | 'other';
-  time: string;
-  title: string;
-  loc: string;
-  tag: string;
-};
-
-type DayPlan = {
-  day: number;
-  date: string;
-  weather: 'sunny' | 'cloudy' | 'rain';
-  title: string;
-  emergency: {
-    police: string;
-    ambulance: string;
-    apps: string[];
-  };
-  activities: Activity[];
-};
-
-type PackingItem = {
-  id: string;
-  item: string;
-  checked: boolean;
-  quantity: string;
-};
-
-type TripData = {
-  id: string;
-  status: 'draft' | 'planned';
-  destination: Destination;
-  origin: string;
-  dateRange: { start: number; end: number; month: number; year: number };
-  duration: number; // days
-  travelers: Traveler[];
-  budget: {
-    total: number;
-    spent: number;
-    breakdown: { name: string; value: number; color: string }[];
-  };
-  itinerary: DayPlan[];
-  packingList: Record<string, PackingItem[]>;
-  preferences: {
-    flight: string;
-    hotel: string;
-    purpose: string;
-  };
-};
-
-type Destination = {
-  id: string;
-  name: string;
-  image: string;
-  currency: string;
-  emergency: { police: string; ambulance: string; apps: string[] };
-};
 
 // --- Mock Data ---
 
-const MOCK_DESTINATIONS: Destination[] = [
+const MOCK_DESTINATIONS = [
   { 
     id: 'kyoto', name: '日本 京都 (Kyoto)', image: 'from-rose-400 to-orange-300', currency: 'JPY',
     emergency: { police: '110', ambulance: '119', apps: ['GO', 'Uber', 'JapanTaxi'] }
@@ -118,7 +49,7 @@ const INITIAL_PACKING_TEMPLATE = {
 
 // --- Helper Functions ---
 
-const generateMockItinerary = (days: number, dest: Destination): DayPlan[] => {
+const generateMockItinerary = (days, dest) => {
   return Array.from({ length: days }, (_, i) => ({
     day: i + 1,
     date: `Day ${i + 1}`,
@@ -129,7 +60,7 @@ const generateMockItinerary = (days: number, dest: Destination): DayPlan[] => {
       { id: `d${i}-1`, type: 'food', time: '09:00', title: '飯店早餐', loc: '飯店餐廳', tag: '早餐' },
       { id: `d${i}-2`, type: 'sightseeing', time: '10:30', title: `${dest.name} 著名景點 ${i+1}`, loc: '市中心', tag: '觀光' },
       { id: `d${i}-3`, type: 'food', time: '12:30', title: '當地特色午餐', loc: '必比登推薦', tag: '午餐' },
-      ...(i === 0 ? [{ id: `d${i}-arrival`, type: 'flight', time: '15:00', title: '辦理入住', loc: '市區飯店', tag: 'Check-in' } as Activity] : []),
+      ...(i === 0 ? [{ id: `d${i}-arrival`, type: 'flight', time: '15:00', title: '辦理入住', loc: '市區飯店', tag: 'Check-in' }] : []),
       { id: `d${i}-4`, type: 'photo', time: '16:00', title: '網美打卡點', loc: '舊城區', tag: '攝影' },
       { id: `d${i}-5`, type: 'food', time: '19:00', title: '精緻晚餐', loc: '景觀餐廳', tag: '晚餐' },
     ]
@@ -138,7 +69,7 @@ const generateMockItinerary = (days: number, dest: Destination): DayPlan[] => {
 
 // --- Components ---
 
-const DonutChart = ({ data, total }: { data: any[], total: number }) => {
+const DonutChart = ({ data, total }) => {
   let accumulatedDeg = 0;
   const gradients = data.map((item) => {
     const deg = (item.value / total) * 360;
@@ -165,12 +96,12 @@ const DonutChart = ({ data, total }: { data: any[], total: number }) => {
   );
 };
 
-const CustomCalendar = ({ selectedRange, onSelectRange }: { selectedRange: number[], onSelectRange: (range: number[]) => void }) => {
+const CustomCalendar = ({ selectedRange, onSelectRange }) => {
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
   const startDay = 3; // Mock Oct 1st is Wed
 
-  const handleDayClick = (day: number) => {
+  const handleDayClick = (day) => {
     if (selectedRange.length === 0 || selectedRange.length === 2) {
       onSelectRange([day]); // Start new range
     } else {
@@ -248,21 +179,21 @@ const CustomCalendar = ({ selectedRange, onSelectRange }: { selectedRange: numbe
 // --- Main App ---
 
 export default function TravelApp() {
-  const [view, setView] = useState<'home' | 'wizard' | 'dashboard' | 'print'>('home');
-  const [trips, setTrips] = useState<TripData[]>([]);
-  const [currentTripId, setCurrentTripId] = useState<string | null>(null);
+  const [view, setView] = useState('home'); // 'home' | 'wizard' | 'dashboard' | 'print'
+  const [trips, setTrips] = useState([]);
+  const [currentTripId, setCurrentTripId] = useState(null);
 
   // Wizard State
   const [step, setStep] = useState(1);
   const [w_origin, setW_Origin] = useState("台北 (TPE)");
-  const [w_dest, setW_Dest] = useState<Destination | null>(null);
-  const [w_range, setW_Range] = useState<number[]>([15, 20]);
-  const [w_travelers, setW_Travelers] = useState<Traveler[]>([{ id: '1', name: '我', docId: '', phone: '' }]);
+  const [w_dest, setW_Dest] = useState(null);
+  const [w_range, setW_Range] = useState([15, 20]);
+  const [w_travelers, setW_Travelers] = useState([{ id: '1', name: '我', docId: '', phone: '' }]);
   const [w_pref, setW_Pref] = useState({ flight: 'direct', hotel: '4star', purpose: 'leisure' });
 
   // Dashboard Modal State
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [newActivity, setNewActivity] = useState<Partial<Activity>>({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
+  const [newActivity, setNewActivity] = useState({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
   const [targetDay, setTargetDay] = useState(1);
   
   // Dashboard Edit State
@@ -275,10 +206,10 @@ export default function TravelApp() {
   const handleCreateTrip = () => {
     // Generate Trip Data
     const duration = w_range.length === 2 ? w_range[1] - w_range[0] + 1 : 1;
-    const newTrip: TripData = {
+    const newTrip = {
       id: Date.now().toString(),
       status: 'planned',
-      destination: w_dest!,
+      destination: w_dest,
       origin: w_origin,
       dateRange: { start: w_range[0], end: w_range.length === 2 ? w_range[1] : w_range[0], month: 10, year: 2025 },
       duration: duration,
@@ -294,7 +225,7 @@ export default function TravelApp() {
            { name: "門票雜支", value: 5000, color: "#A78BFA" },
         ]
       },
-      itinerary: generateMockItinerary(duration, w_dest!),
+      itinerary: generateMockItinerary(duration, w_dest),
       packingList: JSON.parse(JSON.stringify(INITIAL_PACKING_TEMPLATE)),
       preferences: w_pref
     };
@@ -305,7 +236,7 @@ export default function TravelApp() {
     setStep(1); // Reset wizard
   };
 
-  const updateTraveler = (index: number, field: keyof Traveler, value: string) => {
+  const updateTraveler = (index, field, value) => {
     const updated = [...w_travelers];
     updated[index] = { ...updated[index], [field]: value };
     setW_Travelers(updated);
@@ -315,7 +246,7 @@ export default function TravelApp() {
     setW_Travelers([...w_travelers, { id: Date.now().toString(), name: `旅伴 ${w_travelers.length + 1}`, docId: '', phone: '' }]);
   };
 
-  const removeTraveler = (index: number) => {
+  const removeTraveler = (index) => {
     if (w_travelers.length > 1) {
       setW_Travelers(w_travelers.filter((_, i) => i !== index));
     }
@@ -329,7 +260,7 @@ export default function TravelApp() {
           if (day.day === targetDay) {
             return {
               ...day,
-              activities: [...day.activities, { ...newActivity, id: Date.now().toString() } as Activity].sort((a, b) => a.time.localeCompare(b.time))
+              activities: [...day.activities, { ...newActivity, id: Date.now().toString() }].sort((a, b) => a.time.localeCompare(b.time))
             };
           }
           return day;
@@ -343,7 +274,7 @@ export default function TravelApp() {
     setNewActivity({ type: 'other', time: '10:00', title: '', loc: '', tag: '' });
   };
 
-  const handleAddItem = (category: string) => {
+  const handleAddItem = (category) => {
     if (!currentTrip || !newItemText) return;
     const updatedTrips = trips.map(t => {
       if (t.id === currentTrip.id) {
@@ -358,7 +289,7 @@ export default function TravelApp() {
     setNewItemText("");
   };
 
-  const togglePackingCheck = (category: string, id: string) => {
+  const togglePackingCheck = (category, id) => {
     const updatedTrips = trips.map(t => {
       if (t.id === currentTrip.id) {
         const updatedList = { ...t.packingList };
@@ -717,7 +648,7 @@ export default function TravelApp() {
                    <input className="flex-1 p-2 border rounded-lg" placeholder="地點" value={newActivity.loc} onChange={e => setNewActivity({...newActivity, loc: e.target.value})} />
                  </div>
                  <div className="flex gap-2">
-                    <select className="p-2 border rounded-lg flex-1" value={newActivity.type} onChange={e => setNewActivity({...newActivity, type: e.target.value as any})}>
+                    <select className="p-2 border rounded-lg flex-1" value={newActivity.type} onChange={e => setNewActivity({...newActivity, type: e.target.value})}>
                       <option value="food">美食</option>
                       <option value="sightseeing">觀光</option>
                       <option value="photo">攝影</option>
