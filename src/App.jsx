@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithPopup } from "firebase/auth";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from "firebase/firestore";
@@ -9,8 +9,8 @@ import {
   MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
   ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car,
-  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight,
-  AlertCircle, Check, Users, CreditCard, Ticket, Phone, ArrowRight, Star, BedDouble
+  Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight, Share,
+  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Ticket, Phone, ArrowRight, Star, BedDouble
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -118,15 +118,10 @@ const safeCity = (name) => {
   };
 };
 
-// 數字/文字格式化防呆
 const txt = (val) => {
   if (val === null || val === undefined) return '';
   if (typeof val === 'object') return JSON.stringify(val);
   return String(val);
-};
-const num = (val) => {
-    const n = Number(val);
-    return isNaN(n) ? 0 : n;
 };
 
 const calculateDistance = (lat1, lon1, lat2, lon2) => { const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2); return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); };
@@ -136,6 +131,11 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => { const R = 6371; const dL
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
   return <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 ${type === 'error' ? 'bg-red-500' : 'bg-green-600'} text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 z-[100] animate-bounce-in font-bold border border-white/20 backdrop-blur-md`}><CheckCircle2 size={20} /><span className="text-sm">{message}</span></div>;
+};
+
+const WeatherIconRender = ({ iconName }) => {
+  const Icon = WEATHER_ICONS[iconName] || Sun;
+  return <Icon size={14} />;
 };
 
 const getLunarInfo = (date) => {
@@ -343,9 +343,10 @@ function TravelApp() {
 
   const deleteTrip = async (id, e) => { e.stopPropagation(); if (confirm("確定刪除？")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', id)); };
   
-  // Safe Open Trip with simple delay and validation
+  // Safe Open Trip
   const openTrip = (trip) => { 
       setCurrentTrip(trip); 
+      // Force a small delay to ensure render safety
       setTimeout(() => {
           setView('trip-detail'); 
           setNewItem({ ...newItem, date: trip.startDate, currency: safeCity(trip.destination).currency || 'HKD' });
