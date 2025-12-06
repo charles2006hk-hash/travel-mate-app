@@ -8,9 +8,9 @@ import {
   Luggage, Plane, Baby, Accessibility, User, Navigation,
   MapPin as MapPinIcon, Camera, ShoppingBag,
   Calculator, RefreshCw, Edit2, Map, Briefcase, Coffee, Home, Bus, Shirt,
-  ExternalLink, Clock, Search, Utensils, Siren, Ambulance, Car,
+  ExternalLink, Clock, Search, Utensils, Mountain, Siren, Ambulance, Car,
   Printer, Lock, Unlock, LogIn, Download, Eye, X, Heart, ChevronLeft, ChevronRight,
-  AlertCircle, Check, RefreshCw as RefreshIcon, Users, CreditCard, Ticket, Phone, ArrowRight, Star, BedDouble, Mountain
+  AlertCircle, Check, Users, CreditCard, Ticket, Phone, ArrowRight, Star, BedDouble
 } from 'lucide-react';
 
 // --- 1. Firebase 設定 ---
@@ -33,12 +33,12 @@ const APP_ID = "travel-mate-app-7ca34";
 
 // --- 3. 資料庫與常數 ---
 
-// 天氣圖示映射表
+// 天氣圖示映射表 (全域定義一次)
 const WEATHER_ICONS = {
   'Sun': Sun, 'CloudRain': CloudRain, 'Snowflake': Snowflake, 'Cloud': Cloud, 'Droplets': Droplets, 'Wind': Wind
 };
 
-// 天氣圖示元件 (全域定義，避免重複)
+// 天氣圖示元件 (全域定義一次)
 const WeatherIconRender = ({ iconName }) => {
   const Icon = WEATHER_ICONS[iconName] || Sun;
   return <Icon size={14} />;
@@ -104,6 +104,29 @@ const POI_DB = {
   "大阪": [{ name: "環球影城", category: "transport", cost: 650, time: "全日", note: "任天堂世界", lat: 34.6654, lon: 135.4323, img: "https://images.unsplash.com/photo-1623941000802-38fadd7f7b3b?w=400&q=80", desc: "世界級主題樂園。" }, { name: "道頓堀", category: "food", cost: 200, time: "3h", note: "美食吃到飽", lat: 34.6687, lon: 135.5013, img: "https://images.unsplash.com/photo-1590559899731-a382839e5549?w=400&q=80", desc: "大阪美食心臟。" }, { name: "大阪城天守閣", category: "transport", cost: 50, time: "2h", note: "歷史古蹟", lat: 34.6873, lon: 135.5262, img: "https://images.unsplash.com/photo-1555428456-62846879d75b?w=400&q=80", desc: "日本三名城之一。" }, { name: "海遊館", category: "transport", cost: 180, time: "3h", note: "世界最大級水族館", lat: 34.6545, lon: 135.4289, img: "https://images.unsplash.com/photo-1596395914619-338d9b52c007?w=400&q=80", desc: "展示環太平洋火山帶生態。" }, { name: "心齋橋筋", category: "shopping", cost: 0, time: "3h", note: "購物天堂", lat: 34.6713, lon: 135.5014, img: "https://images.unsplash.com/photo-1567972318528-6c6773777e36?w=400&q=80", desc: "大阪最著名的購物街。" }],
   "雪梨": [{ name: "雪梨歌劇院", category: "transport", cost: 200, time: "2h", note: "世界遺產", lat: -33.8568, lon: 151.2153, img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80", desc: "經典地標。" }, { name: "邦迪海灘", category: "transport", cost: 0, time: "3h", note: "衝浪", lat: -33.8915, lon: 151.2767, img: "https://images.unsplash.com/photo-1523428098666-1a6a90e96033?w=400&q=80", desc: "澳洲最著名海灘。" }, { name: "雪梨魚市場", category: "food", cost: 250, time: "2h", note: "生蠔龍蝦午餐", lat: -33.8732, lon: 151.1923, img: "https://images.unsplash.com/photo-1621316279476-b33344662867?w=400&q=80", desc: "南半球最大的海鮮市場。" }, { name: "維多利亞女王大廈", category: "shopping", cost: 0, time: "2h", note: "古蹟內購物", lat: -33.8718, lon: 151.2067, img: "https://images.unsplash.com/photo-1596527588365-d4e77243c220?w=400&q=80", desc: "羅馬式建築風格的購物中心。" }],
   "default": [{ name: "市中心地標", category: "transport", cost: 0, time: "1h", note: "打卡點", lat: 0, lon: 0, img: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80", desc: "城市中心。" }, { name: "當地博物館", category: "transport", cost: 100, time: "2h", note: "文化體驗", lat: 0, lon: 0, img: "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?w=400&q=80", desc: "收藏豐富的文化遺產。" }]
+};
+
+// --- Helper Functions ---
+
+// 安全取得城市資料，避免 undefined 錯誤
+const safeCity = (name) => {
+  return CITY_DATA[name] || { 
+    img: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80", 
+    intro: "探索未知的城市。", 
+    rideApp: "Uber", 
+    emergency: { police: "110", ambulance: "119" } 
+  };
+};
+
+// 數字/文字格式化防呆
+const txt = (val) => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+};
+const num = (val) => {
+    const n = Number(val);
+    return isNaN(n) ? 0 : n;
 };
 
 const calculateDistance = (lat1, lon1, lat2, lon2) => { const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2); return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); };
@@ -248,17 +271,16 @@ function TravelApp() {
   useEffect(() => { const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); if (!u) signInAnonymously(auth); }); const savedHistory = localStorage.getItem('trip_search_history'); if (savedHistory) setSearchHistory(JSON.parse(savedHistory)); return () => unsubscribe(); }, []);
   useEffect(() => { if (!user) return; const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'trips'), orderBy('createdAt', 'desc')); return onSnapshot(q, (snapshot) => setTrips(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))); }, [user]);
   useEffect(() => { if (!user || !currentTrip) return; const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), where('tripId', '==', currentTrip.id)); return onSnapshot(q, (snapshot) => setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))); }, [user, currentTrip]);
-  useEffect(() => { if (currentTrip && CITY_DATA[currentTrip.destination]) { const { lat, lon } = CITY_DATA[currentTrip.destination]; fetchDailyWeather(lat, lon, currentTrip.startDate, currentTrip.endDate).then(data => setWeatherData(data)); } }, [currentTrip]);
+  useEffect(() => { if (currentTrip && safeCity(currentTrip.destination).lat) { const { lat, lon } = safeCity(currentTrip.destination); fetchDailyWeather(lat, lon, currentTrip.startDate, currentTrip.endDate).then(data => setWeatherData(data)); } }, [currentTrip]);
 
   const updateTripActualCost = async (tripId) => { if (!user || !tripId) return; try { const q = query(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), where('tripId', '==', tripId)); const snapshot = await getDocs(q); const total = snapshot.docs.reduce((sum, doc) => sum + (Number(doc.data().cost) || 0), 0); await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', tripId), { actualCost: total }); } catch (e) { console.error(e); } };
 
   // Core Logic: AI Budget Calculation
   const calculateEstimatedBudget = () => {
     if (!newTrip.startDate || !newTrip.endDate || newTrip.endDate < newTrip.startDate) return;
-    const cityInfo = CITY_DATA[newTrip.destination];
-    const region = cityInfo ? cityInfo.region : 'default';
+    const region = safeCity(newTrip.destination).region || 'default';
     const baseCosts = BASE_COSTS[region] || BASE_COSTS['default'];
-    const purposeMult = PURPOSE_MULTIPLIERS[newTrip.purpose] || PURPOSE_MULTIPLIERS['sightseeing'];
+    const purposeMult = PURPOSE_MULTIPLIERS[newTrip.purpose];
     const flightBase = (FLIGHT_COSTS[region] || FLIGHT_COSTS['default'])[newTrip.flightType];
     const hotelBase = HOTEL_COSTS[newTrip.hotelType];
 
@@ -281,7 +303,7 @@ function TravelApp() {
   useEffect(() => { if (newTrip.destination && newTrip.startDate && newTrip.endDate) calculateEstimatedBudget(); }, [newTrip.destination, newTrip.startDate, newTrip.endDate, newTrip.travelers, newTrip.purpose, newTrip.flightType, newTrip.hotelType]);
 
   // CRUD & Actions
-  const handleGoogleLink = async () => { try { if (user.isAnonymous) await linkWithPopup(user, googleProvider); else showToast("已登入", "success"); } catch (error) { if (error.code === 'auth/credential-already-in-use') { if(confirm("此帳號已有資料，是否切換？")) await signInWithPopup(auth, googleProvider); } else { showToast("登入失敗，請檢查瀏覽器是否阻擋彈窗", "error"); } } };
+  const handleGoogleLink = async () => { try { if (user.isAnonymous) await linkWithPopup(user, googleProvider); else showToast("已登入", "success"); } catch (error) { showToast(`連結失敗：${error.code === 'auth/popup-blocked' ? '彈窗被阻擋' : '請檢查設定'}`, "error"); } };
   const handleExportData = () => { const data = { user: user.uid, trips: trips, items: items, exportedAt: new Date().toISOString() }; const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `travel_backup.json`; a.click(); };
   const toggleTripLock = async () => { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', currentTrip.id), { isLocked: !currentTrip.isLocked }); setCurrentTrip(prev => ({...prev, isLocked: !prev.isLocked})); showToast(currentTrip.isLocked ? "行程已解鎖" : "行程已鎖定", "success"); };
   const handlePrint = () => window.print();
@@ -320,85 +342,42 @@ function TravelApp() {
   };
 
   const deleteTrip = async (id, e) => { e.stopPropagation(); if (confirm("確定刪除？")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'trips', id)); };
-  const openTrip = (trip) => { setCurrentTrip(trip); setView('trip-detail'); setNewItem({ ...newItem, date: trip.startDate, currency: safeCity(trip.destination).currency || 'HKD' }); };
+  
+  // Safe Open Trip with simple delay and validation
+  const openTrip = (trip) => { 
+      setCurrentTrip(trip); 
+      setTimeout(() => {
+          setView('trip-detail'); 
+          setNewItem({ ...newItem, date: trip.startDate, currency: safeCity(trip.destination).currency || 'HKD' });
+      }, 50);
+  };
+  
   const handleForeignCostChange = (amount, currency) => { const rate = EXCHANGE_RATES[currency] || 1; setNewItem(prev => ({ ...prev, foreignCost: amount, currency: currency, cost: Math.round(amount * rate) })); };
-  
-  // FIX: weight/volume default value issue
   const addItem = async (e) => {
-    if(e) e.preventDefault();
-    if ((!newItem.title && !newItem.pName) && !checkInModal) return; if (currentTrip.isLocked) return showToast("已鎖定", "error");
-    if (activeTab === 'people') {
-        await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), { tripId: currentTrip.id, type: 'people', title: newItem.pName, notes: `房號: ${newItem.pRoom}`, pId: newItem.pId, pPhone: newItem.pPhone, completed: false, createdAt: serverTimestamp() });
-        setNewItem({...newItem, pName:'', pId:'', pPhone:'', pRoom:''}); return showToast("人員已新增", "success");
-    }
-    let finalNotes = newItem.notes; 
-    if (newItem.foreignCost && newItem.currency !== 'HKD') finalNotes = `${newItem.currency} ${newItem.foreignCost} (匯率 ${EXCHANGE_RATES[newItem.currency]}) ${finalNotes}`;
-    
-    const payload = { 
-        ...newItem, 
-        notes: finalNotes, 
-        weight: Number(newItem.weight) || 0, 
-        volume: Number(newItem.volume) || 0, 
-        cost: Number(newItem.cost) || 0,
-        tripId: currentTrip.id, 
-        completed: false, 
-        createdAt: serverTimestamp() 
-    };
-
-    if (editingItem) { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', editingItem), payload); setEditingItem(null); } 
-    else { await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), payload); }
-    
-    setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '', quantity: 1, weight: 0, startTime: '', duration: '' }); 
-    setCheckInModal(false); setShowSpotSelector(false);
-    showToast("項目已新增", "success");
-  };
-
-  const handleCheckIn = () => {
-    if (currentTrip.isLocked) return showToast("已鎖定", "error"); if (!navigator.geolocation) return showToast("不支援定位", "error");
-    navigator.geolocation.getCurrentPosition((pos) => {
-       const { latitude, longitude } = pos.coords; const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-       const citySpots = POI_DB[currentTrip.destination] || []; let nearbySpot = null; let minDistance = 5; 
-       citySpots.forEach(spot => { if (spot.lat && spot.lon) { const d = calculateDistance(latitude, longitude, spot.lat, spot.lon); if (d < minDistance) { minDistance = d; nearbySpot = spot; } } });
-       setNewItem(prev => ({ ...prev, type: 'itinerary', title: nearbySpot ? `📍 打卡: ${nearbySpot.name} (附近)` : `📍 打卡 (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`, 
-         date: new Date().toISOString().split('T')[0], startTime: t, notes: nearbySpot ? `位於 ${nearbySpot.name} 附近` : '', cost: '', category: 'transport', isCheckIn: true 
-       }));
-       setCheckInModal(true);
-    }, () => showToast("定位失敗", "error"));
+    if(e) e.preventDefault(); if (!newItem.title && !newItem.pName && !checkInModal) return;
+    const payload = { ...newItem, weight: Number(newItem.weight)||0, volume: Number(newItem.volume)||0, cost: Number(newItem.cost)||0, tripId: currentTrip.id, completed: false, createdAt: serverTimestamp() };
+    if (editingItem) { await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', editingItem), payload); setEditingItem(null); } else { await addDoc(collection(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items'), payload); }
+    if (newItem.cost > 0) setTimeout(() => updateTripActualCost(currentTrip.id), 500);
+    setNewItem({ ...newItem, title: '', cost: '', foreignCost: '', notes: '', quantity: 1, weight: 0, startTime: '', duration: '' }); setCheckInModal(false); setShowSpotSelector(false); showToast("已儲存", "success");
   };
   
-  const addSpotFromInfo = (spot) => {
-    setActiveTab('itinerary'); setNewItem({ ...newItem, type: 'itinerary', category: spot.category || 'transport', title: spot.name, cost: spot.cost || 0, notes: spot.note || '', duration: spot.time || '2h', date: currentTrip.startDate }); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); showToast(`已選 ${spot.name}`, "success");
+  const handleCheckIn = () => {
+     if (!navigator.geolocation) return showToast("不支援定位", "error");
+     navigator.geolocation.getCurrentPosition((pos) => {
+        setNewItem(prev => ({ ...prev, type: 'itinerary', title: `📍 打卡`, date: new Date().toISOString().split('T')[0], startTime: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), notes: `GPS: ${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)}`, cost: 0, category: 'transport', isCheckIn: true }));
+        setCheckInModal(true);
+     });
   };
-
-  const deleteItem = async (id) => { if (currentTrip.isLocked) return showToast("已鎖定", "error"); if(!confirm("確定刪除？")) return; await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', id)); setTimeout(() => updateTripActualCost(currentTrip.id), 500); };
+  const addSpotFromInfo = (spot) => { setActiveTab('itinerary'); setNewItem({ ...newItem, type: 'itinerary', category: spot.category, title: spot.name, cost: spot.cost, notes: spot.note, duration: spot.time, date: currentTrip.startDate }); showToast("已選擇", "success"); };
+  const deleteItem = async (id) => { if(!confirm("確定刪除？")) return; await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', id)); setTimeout(() => updateTripActualCost(currentTrip.id), 500); };
   const toggleItemComplete = async (item) => updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', item.id), { completed: !item.completed });
-  const updateQuantity = async (item, delta) => { if (currentTrip.isLocked) return; const newQty = Math.max(1, (item.quantity || 1) + delta); await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', item.id), { quantity: newQty }); };
-  const editItem = (item) => { if (currentTrip.isLocked) return showToast("已鎖定", "error"); setNewItem({ ...item, foreignCost: item.foreignCost || '', currency: item.currency || 'HKD' }); setEditingItem(item.id); };
-  const openGoogleMapsRoute = (date) => {
-    const points = items.filter(i => i.type === 'itinerary' && i.date === date).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
-    if (points.length === 0) return showToast("無行程", "error");
-    const origin = points[0].title; const destination = points[points.length - 1].title;
-    window.open(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`, '_blank');
-  };
+  const updateQuantity = async (item, delta) => { const newQty = Math.max(1, (item.quantity || 1) + delta); await updateDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'sub_items', item.id), { quantity: newQty }); };
+  const editItem = (item) => { setNewItem({ ...item, foreignCost: item.foreignCost || '', currency: item.currency || 'HKD' }); setEditingItem(item.id); };
+  const openGoogleMapsRoute = (date) => { const points = items.filter(i => i.type === 'itinerary' && i.date === date); if (points.length === 0) return showToast("無行程", "error"); const origin = points[0].title; const destination = points[points.length - 1].title; window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentTrip.destination}`, '_blank'); };
 
   const luggageStats = useMemo(() => { const packingItems = items.filter(i => i.type === 'packing'); const totalWeight = packingItems.reduce((sum, i) => sum + (Number(i.weight || 0) * Number(i.quantity || 1)), 0); return { totalWeight: totalWeight.toFixed(1), suggestion: totalWeight > 15 ? "24吋+" : "20吋" }; }, [items]);
-  const budgetStats = useMemo(() => { const budgetItems = items.filter(i => i.cost && (i.type === 'budget' || i.type === 'itinerary')); const stats = { shopping: 0, food: 0, stay: 0, transport: 0, other: 0, total: 0 }; budgetItems.forEach(i => { const cost = Number(i.cost) || 0; const cat = i.category || 'other'; if (stats[cat] !== undefined) stats[cat] += cost; else stats.other += cost; stats.total += cost; }); return stats; }, [items]);
-
-  const TravelerCounter = ({ label, icon: Icon, value, field }) => (
-    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl">
-      <span className="flex items-center gap-2 text-sm font-medium text-gray-600"><Icon size={16}/> {label}</span>
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={()=>setNewTrip(p=>({...p, travelers:{...p.travelers, [field]:Math.max(0, p.travelers[field]-1)}}))} className="w-6 h-6 bg-white rounded-full border shadow-sm flex items-center justify-center text-gray-500 hover:bg-gray-100">-</button>
-        <span className="w-4 text-center text-sm font-bold">{value}</span>
-        <button type="button" onClick={()=>setNewTrip(p=>({...p, travelers:{...p.travelers, [field]:p.travelers[field]+1}}))} className="w-6 h-6 bg-white rounded-full border shadow-sm flex items-center justify-center text-blue-600 hover:bg-blue-50">+</button>
-      </div>
-    </div>
-  );
-
-  const WeatherIconComponent = ({ iconName }) => {
-      const Icon = WEATHER_ICONS[iconName] || Sun;
-      return <Icon size={14} />;
-  };
+  const budgetStats = useMemo(() => { const budgetItems = items.filter(i => Number(i.cost) > 0 && (i.type==='budget'||i.type==='itinerary')); const stats = { total: 0 }; budgetItems.forEach(i => { stats.total += Number(i.cost) || 0; }); return stats; }, [items]);
+  const TravelerCounter = ({ label, icon: Icon, value, field }) => (<div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl"><span className="flex items-center gap-2 text-sm font-medium text-gray-600"><Icon size={16}/> {label}</span><div className="flex items-center gap-3"><button type="button" onClick={()=>setNewTrip(p=>({...p, travelers:{...p.travelers, [field]:Math.max(0, p.travelers[field]-1)}}))} className="w-6 h-6 bg-white rounded-full border shadow-sm flex items-center justify-center text-gray-500 hover:bg-gray-100">-</button><span className="w-4 text-center text-sm font-bold">{value}</span><button type="button" onClick={()=>setNewTrip(p=>({...p, travelers:{...p.travelers, [field]:p.travelers[field]+1}}))} className="w-6 h-6 bg-white rounded-full border shadow-sm flex items-center justify-center text-blue-600 hover:bg-blue-50">+</button></div></div>);
 
   const ReportTemplate = () => {
     if (!currentTrip) return null;
@@ -406,36 +385,10 @@ function TravelApp() {
     const dateArray = Array.from({length: dayDiff}).map((_, i) => new Date(new Date(currentTrip.startDate).getTime() + i * 86400000).toISOString().split('T')[0]);
     return (
       <div className="bg-white text-gray-800 font-sans p-8 max-w-[210mm] mx-auto min-h-[297mm] relative">
-         <div className="border-b-4 border-double border-gray-800 pb-6 mb-8 text-center font-serif">
-             <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mb-2 uppercase tracking-widest"><Plane size={14} /> Travel Itinerary</div>
-             <h1 className="text-4xl font-bold text-gray-900 mb-3">{user?.displayName || '親愛的旅客'} 的 {currentTrip.destination} 之旅</h1>
-             <p className="text-lg text-gray-600 italic">{currentTrip.startDate} — {currentTrip.endDate} • {dayDiff} 天</p>
-         </div>
+         <div className="border-b-4 border-double border-gray-800 pb-6 mb-8 text-center font-serif"><h1 className="text-4xl font-bold text-gray-900 mb-3">{user?.displayName || '親愛的旅客'} 的 {txt(currentTrip.destination)} 之旅</h1><p className="text-lg text-gray-600 italic">{txt(currentTrip.startDate)} — {txt(currentTrip.endDate)} • {dayDiff} 天</p></div>
          <div className="flex flex-row gap-8 items-start">
-            <div className="w-[65%]">
-               <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2"><MapPin size={20} className="text-blue-600"/> 每日行程</h2>
-               <div className="space-y-6">
-                  {dateArray.map((dateStr, idx) => {
-                     const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1));
-                     const w = weatherData[dateStr];
-                     return (
-                        <div key={dateStr} className="relative pl-4 border-l-2 border-gray-200 break-inside-avoid">
-                           <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-blue-600"></div>
-                           <div className="flex justify-between items-center mb-2">
-                              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Day {idx+1} • {dateStr}</h3>
-                              {w && <div className="flex items-center gap-1 text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded-full"><WeatherIconComponent iconName={w.iconKey} /> {w.desc} {w.max}°</div>}
-                           </div>
-                           {dayItems.map(item => (<div key={item.id} className="text-sm"><span className="font-bold text-gray-800 mr-2">{item.startTime || '待定'}</span><span className="text-gray-700">{item.title}</span></div>))}
-                        </div>
-                     )
-                  })}
-               </div>
-            </div>
-            <div className="w-[35%] space-y-8">
-               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 break-inside-avoid"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-sm uppercase"><Calculator size={14}/> 財務概況</h3><div className="space-y-2 text-sm"><div className="flex justify-between"><span>總預算</span><span className="font-bold">${currentTrip.estimatedBudget?.toLocaleString()}</span></div><div className="flex justify-between text-blue-600"><span>預計支出</span><span className="font-bold">${budgetStats.total.toLocaleString()}</span></div></div></div>
-               <div className="break-inside-avoid"><h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Users size={14}/> 同行人員</h3><div className="text-xs text-gray-600 space-y-2">{items.filter(i => i.type === 'people').map(p => (<div key={p.id} className="flex justify-between border-b border-gray-100 pb-1"><span className="font-bold">{p.title}</span><span className="text-gray-400">{p.notes?.split(' ')[1]}</span></div>))}</div></div>
-               <div className="break-inside-avoid"><h3 className="font-bold text-gray-800 border-b pb-1 mb-3 text-sm uppercase flex items-center gap-2"><Briefcase size={14}/> 必帶物品</h3><div className="text-xs text-gray-600 space-y-1">{items.filter(i => i.type === 'packing').map(item => (<div key={item.id} className="flex items-center gap-2"><div className="w-3 h-3 border border-gray-400 rounded-sm"></div><span>{item.title}</span>{item.quantity > 1 && <span className="text-gray-400">x{item.quantity}</span>}</div>))}</div></div>
-            </div>
+            <div className="w-[65%]"><h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2"><MapPin size={20} className="text-blue-600"/> 每日行程</h2><div className="space-y-6">{dateArray.map((dateStr, idx) => { const dayItems = items.filter(i => i.type === 'itinerary' && i.date === dateStr).sort((a,b) => (a.startTime > b.startTime ? 1 : -1)); const w = weatherData[dateStr]; return (<div key={dateStr} className="pl-4 border-l-2 break-inside-avoid"><div className="flex justify-between mb-2"><h3 className="font-bold text-gray-800">Day {idx+1} • {dateStr}</h3>{w && <div className="text-xs bg-blue-50 px-2 py-1 rounded-full"><WeatherIconRender iconName={w.iconKey} /> {w.desc}</div>}</div>{dayItems.map(item => (<div key={item.id} className="text-sm mb-1"><span className="font-bold mr-2">{txt(item.startTime)}</span>{txt(item.title)}</div>))}</div>) })}</div></div>
+            <div className="w-[35%] space-y-8"><div className="bg-gray-50 p-4 rounded border break-inside-avoid"><h3 className="font-bold mb-2">財務</h3><div>預算: ${Number(currentTrip.estimatedBudget).toLocaleString()}</div><div>支出: ${budgetStats.total.toLocaleString()}</div></div><div className="break-inside-avoid"><h3 className="font-bold border-b mb-2">人員</h3>{items.filter(i=>i.type==='people').map(p=><div key={p.id} className="text-xs">{txt(p.title)}</div>)}</div></div>
          </div>
       </div>
     );
@@ -452,8 +405,7 @@ function TravelApp() {
 
         <div className="max-w-4xl mx-auto space-y-6 pt-6">
            <header className="flex justify-between items-center mb-8"><h1 className="text-2xl font-bold text-blue-900 flex items-center gap-2"><Plane className="text-blue-600" /> 智能旅遊管家</h1><div className="flex gap-2"><button onClick={handleExportData} className="p-2 bg-white rounded-full shadow text-gray-500"><Download size={18}/></button><button onClick={() => setShowUserModal(true)} className="bg-white px-4 py-2 rounded-full shadow-sm border text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"><User size={18}/> {user?.isAnonymous?'訪客':'已綁定'}</button></div></header>
-           
-           {showUserModal && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm relative shadow-2xl"><button onClick={()=>setShowUserModal(false)} className="absolute top-4 right-4">X</button><h3 className="font-bold mb-4">用戶中心</h3><div className="mb-4 text-xs text-gray-400 break-all">ID: {user?.uid}</div><button onClick={handleGoogleLink} className="w-full bg-orange-50 text-orange-600 py-3 rounded-xl mb-2 font-bold border border-orange-100 flex justify-center gap-2"><LogIn size={18}/> 綁定 Google 帳號 (永久保存)</button><button onClick={handleExportData} className="w-full bg-gray-50 py-3 rounded-xl text-sm text-gray-600">備份資料 (JSON)</button></div></div>}
+           {showUserModal && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm relative shadow-2xl"><button onClick={()=>setShowUserModal(false)} className="absolute top-4 right-4">X</button><h3 className="font-bold mb-4">用戶中心</h3><button onClick={handleGoogleLink} className="w-full bg-orange-50 text-orange-600 py-3 rounded-xl mb-2 border border-orange-100 flex justify-center gap-2"><LogIn size={18}/> 綁定 Google 帳號 (永久保存)</button><button onClick={handleExportData} className="w-full bg-gray-50 py-3 rounded-xl text-sm text-gray-600">備份資料 (JSON)</button></div></div>}
            
            {/* Add New Trip Card */}
            <div onClick={() => {setNewTrip({origin:'香港', destination:'', startDate:'', endDate:'', purpose:'sightseeing', travelers:{adults:1, children:0, toddlers:0, elderly:0}, flightType:'direct', hotelType:'4star', estimatedBudget:0, budgetDetails:{}}); setStep(0); setView('create-trip');}} className="bg-gradient-to-br from-blue-500 to-indigo-600 p-8 rounded-3xl shadow-lg cursor-pointer transform hover:scale-[1.02] transition-all text-white flex items-center justify-between group">
@@ -466,12 +418,12 @@ function TravelApp() {
                <div key={trip.id} onClick={() => openTrip(trip)} className="bg-white rounded-2xl shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-100 transition-all group">
                  <div className="h-32 bg-gray-200 relative">
                     <img src={safeCity(trip.destination).img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4"><h3 className="text-xl font-bold text-white">{trip.destination}</h3></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4"><h3 className="text-xl font-bold text-white">{txt(trip.destination)}</h3></div>
                     <button onClick={(e) => deleteTrip(trip.id, e)} className="absolute top-2 right-2 bg-white/20 backdrop-blur p-2 rounded-full text-white hover:bg-red-500 hover:text-white transition-colors"><Trash2 size={14}/></button>
                  </div>
                  <div className="p-4">
                     <div className="flex justify-between items-center text-sm text-gray-500 mb-3">
-                       <span className="flex items-center gap-1 font-bold"><CalIcon size={14}/> {trip.startDate}</span>
+                       <span className="flex items-center gap-1 font-bold"><CalIcon size={14}/> {txt(trip.startDate)}</span>
                        {trip.startDate && trip.endDate && (
                          <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold">
                            {Math.max(1, Math.ceil((new Date(trip.endDate) - new Date(trip.startDate))/(86400000))+1)} 天
@@ -613,7 +565,7 @@ function TravelApp() {
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between py-3">
             <button onClick={() => setView('dashboard')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1"><ArrowRight size={16} className="rotate-180"/> 返回</button>
-            <div className="text-center"><h1 className="font-bold text-lg flex items-center gap-2 justify-center">{currentTrip.destination} {currentTrip.isLocked && <Lock size={14} className="text-red-500"/>}</h1><p className="text-xs text-gray-500">{currentTrip.startDate} ~ {currentTrip.endDate}</p></div>
+            <div className="text-center"><h1 className="font-bold text-lg flex items-center gap-2 justify-center">{txt(currentTrip.destination)} {currentTrip.isLocked && <Lock size={14} className="text-red-500"/>}</h1><p className="text-xs text-gray-500">{txt(currentTrip.startDate)} ~ {txt(currentTrip.endDate)}</p></div>
             <div className="flex gap-2"><button onClick={toggleTripLock} className={`p-2 rounded-full border ${currentTrip.isLocked ? 'bg-red-50 text-red-500 border-red-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{currentTrip.isLocked ? <Lock size={16}/> : <Unlock size={16}/>}</button><button onClick={() => setShowPreviewModal(true)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-full shadow-sm text-sm hover:bg-blue-700"><Eye size={14}/> 預覽</button></div>
           </div>
           <div className="flex gap-6 overflow-x-auto pb-1 scrollbar-hide">
@@ -629,7 +581,7 @@ function TravelApp() {
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
              <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">📍 足跡打卡</h3>
-                <div className="text-sm text-gray-500 mb-4">{newItem.title}</div>
+                <div className="text-sm text-gray-500 mb-4">{txt(newItem.title)}</div>
                 <div className="space-y-3">
                    <div><label className="text-xs text-gray-500">備註</label><input type="text" value={newItem.notes} onChange={e=>setNewItem({...newItem, notes:e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50" placeholder="心情..."/></div>
                    <div><label className="text-xs text-gray-500">消費</label><div className="flex gap-2"><input type="number" value={newItem.foreignCost} onChange={e=>handleForeignCostChange(e.target.value, newItem.currency)} className="flex-1 p-2 border rounded-lg bg-gray-50"/><select value={newItem.currency} onChange={e=>handleForeignCostChange(newItem.foreignCost, e.target.value)} className="w-20 p-2 border rounded-lg bg-white">{Object.keys(EXCHANGE_RATES).map(c=><option key={c} value={c}>{c}</option>)}</select></div></div>
@@ -698,9 +650,9 @@ function TravelApp() {
                         <div key={item.id} className={`flex gap-3 mb-4 relative pl-4 border-l-2 ${item.isCheckIn ? 'border-l-blue-400' : 'border-l-gray-200'}`}>
                            <div className={`absolute -left-[5px] top-1 w-2 h-2 rounded-full ${item.isCheckIn ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
                            <div className="flex-1 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}>
-                              <div className="flex justify-between"><span className="font-bold text-gray-800 text-sm">{item.title}</span><span className="text-xs text-gray-400 font-mono">{item.startTime}</span></div>
-                              <div className="text-xs text-gray-500 mt-1 flex gap-2">{item.duration && <span className="flex items-center gap-1"><Clock size={10}/> {item.duration}</span>}{Number(item.cost) > 0 && <span className="text-orange-500 font-bold flex items-center gap-1"><Ticket size={10}/> ${item.cost}</span>}</div>
-                              {item.notes && <div className="text-xs text-gray-500 mt-2 bg-gray-50 p-2 rounded">{item.notes}</div>}
+                              <div className="flex justify-between"><span className="font-bold text-gray-800 text-sm">{txt(item.title)}</span><span className="text-xs text-gray-400 font-mono">{txt(item.startTime)}</span></div>
+                              <div className="text-xs text-gray-500 mt-1 flex gap-2">{txt(item.duration) && <span className="flex items-center gap-1"><Clock size={10}/> {txt(item.duration)}</span>}{Number(item.cost) > 0 && <span className="text-orange-500 font-bold flex items-center gap-1"><Ticket size={10}/> ${item.cost}</span>}</div>
+                              {item.notes && <div className="text-xs text-gray-500 mt-2 bg-gray-50 p-2 rounded">{txt(item.notes)}</div>}
                            </div>
                            {!currentTrip.isLocked && <button onClick={() => deleteItem(item.id)} className="text-gray-300 hover:text-red-400 self-start"><Trash2 size={14}/></button>}
                         </div>
@@ -715,7 +667,7 @@ function TravelApp() {
         {activeTab === 'packing' && (
           <div>
             <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center mb-4"><div><div className="font-bold text-indigo-800">行李總重 {luggageStats.totalWeight} kg</div><div className="text-xs text-indigo-500">建議：{luggageStats.suggestion}</div></div><Briefcase size={24} className="text-indigo-300"/></div>
-            {['成人', '小童', '幼童', '長者', '全體'].map(owner => { const ownerItems = items.filter(i => i.type === 'packing' && (i.itemOwner === owner || (!i.itemOwner && owner === '全體'))); if (ownerItems.length === 0) return null; return ( <div key={owner} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4"><h4 className="text-sm font-bold text-gray-500 mb-3 border-b pb-1">{owner}</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{ownerItems.map(item => (<div key={item.id} className="flex items-center gap-3 mb-2"><button onClick={() => toggleItemComplete(item)} className={`${item.completed ? 'text-green-500' : 'text-gray-300'}`}><CheckCircle2 size={20}/></button><div className="p-2 bg-gray-50 rounded-full text-gray-500">{(() => { const DefIcon = ITEM_DEFINITIONS[item.title]?.icon || Circle; return <DefIcon size={16}/> })()}</div><div className="flex-1 flex justify-between"><span className={`text-sm font-medium ${item.completed ? 'line-through text-gray-300' : 'text-gray-800'}`}>{item.title}</span><span className="text-xs bg-gray-100 px-2 py-1 rounded">x{item.quantity}</span></div>{!currentTrip.isLocked && <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1"><button onClick={() => updateQuantity(item, -1)} className="text-gray-400 hover:text-blue-500"><Minus size={12}/></button><button onClick={() => updateQuantity(item, 1)} className="text-gray-400 hover:text-blue-500"><Plus size={12}/></button></div>}</div>))}</div></div> ) })}
+            {['成人', '小童', '幼童', '長者', '全體'].map(owner => { const ownerItems = items.filter(i => i.type === 'packing' && (i.itemOwner === owner || (!i.itemOwner && owner === '全體'))); if (ownerItems.length === 0) return null; return ( <div key={owner} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4"><h4 className="text-sm font-bold text-gray-500 mb-3 border-b pb-1">{owner}</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{ownerItems.map(item => (<div key={item.id} className="flex items-center gap-3 mb-2"><button onClick={() => toggleItemComplete(item)} className={`${item.completed ? 'text-green-500' : 'text-gray-300'}`}><CheckCircle2 size={20}/></button><div className="p-2 bg-gray-50 rounded-full text-gray-500">{(() => { const DefIcon = ITEM_DEFINITIONS[item.title]?.icon || Circle; return <DefIcon size={16}/> })()}</div><div className="flex-1 flex justify-between"><span className={`text-sm font-medium ${item.completed ? 'line-through text-gray-300' : 'text-gray-800'}`}>{txt(item.title)}</span><span className="text-xs bg-gray-100 px-2 py-1 rounded">x{item.quantity}</span></div>{!currentTrip.isLocked && <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1"><button onClick={() => updateQuantity(item, -1)} className="text-gray-400 hover:text-blue-500"><Minus size={12}/></button><button onClick={() => updateQuantity(item, 1)} className="text-gray-400 hover:text-blue-500"><Plus size={12}/></button></div>}</div>))}</div></div> ) })}
           </div>
         )}
 
@@ -723,7 +675,7 @@ function TravelApp() {
         {activeTab === 'budget' && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-6 rounded-2xl shadow-lg flex justify-between items-center"><div><p className="text-emerald-100 text-xs uppercase">總支出 (HKD)</p><h2 className="text-3xl font-bold mt-1">${budgetStats.total.toLocaleString()}</h2></div><div className="text-right"><p className="text-emerald-100 text-xs uppercase">預算剩餘</p><h3 className={`text-xl font-bold mt-1`}>${(currentTrip.estimatedBudget - budgetStats.total).toLocaleString()}</h3></div></div>
-            <div className="bg-white rounded-xl border divide-y">{items.filter(i=>Number(i.cost) > 0 && (i.type==='budget'||i.type==='itinerary')).sort((a,b)=>b.createdAt-a.createdAt).map(item => (<div key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}><div className="flex items-center gap-3"><div className={`p-2 rounded-full bg-gray-50 ${BUDGET_CATEGORIES[item.category]?.color}`}>{(() => { const Icon = BUDGET_CATEGORIES[item.category]?.icon || Circle; return <Icon size={16}/> })()}</div><div><div className="text-sm font-medium text-gray-800">{item.title}</div><div className="text-xs text-gray-400">{item.notes}</div></div></div><div className="font-bold text-gray-700">${Number(item.cost).toLocaleString()}</div></div>))}</div>
+            <div className="bg-white rounded-xl border divide-y">{items.filter(i=>Number(i.cost) > 0 && (i.type==='budget'||i.type==='itinerary')).sort((a,b)=>b.createdAt-a.createdAt).map(item => (<div key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer" onClick={() => !currentTrip.isLocked && editItem(item)}><div className="flex items-center gap-3"><div className={`p-2 rounded-full bg-gray-50 ${BUDGET_CATEGORIES[item.category]?.color}`}>{(() => { const Icon = BUDGET_CATEGORIES[item.category]?.icon || Circle; return <Icon size={16}/> })()}</div><div><div className="text-sm font-medium text-gray-800">{txt(item.title)}</div><div className="text-xs text-gray-400">{txt(item.notes)}</div></div></div><div className="font-bold text-gray-700">${Number(item.cost).toLocaleString()}</div></div>))}</div>
           </div>
         )}
 
@@ -731,7 +683,7 @@ function TravelApp() {
         {activeTab === 'people' && (
            <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3">
-                 {items.filter(i=>i.type==='people').map(p=><div key={p.id} className="bg-white p-4 rounded-xl border shadow-sm relative group"><button onClick={()=>deleteItem(p.id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500"><Trash2 size={14}/></button><div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">{p.title[0]}</div><div><h3 className="font-bold text-gray-800">{p.title}</h3><p className="text-xs text-gray-500">房號: {p.notes?.split(' ')[1]}</p></div></div><div className="text-xs text-gray-600 space-y-1 pt-2 border-t"><div className="flex gap-2"><CreditCard size={12}/> ID: {p.pId || '-'}</div><div className="flex gap-2"><Phone size={12} /> Tel: {p.pPhone || '-'}</div></div></div>)}
+                 {items.filter(i=>i.type==='people').map(p=><div key={p.id} className="bg-white p-4 rounded-xl border shadow-sm relative group"><button onClick={()=>deleteItem(p.id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500"><Trash2 size={14}/></button><div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">{txt(p.title)[0]}</div><div><h3 className="font-bold text-gray-800">{txt(p.title)}</h3><p className="text-xs text-gray-500">房號: {txt(p.notes)?.split(' ')[1]}</p></div></div><div className="text-xs text-gray-600 space-y-1 pt-2 border-t"><div className="flex gap-2"><CreditCard size={12}/> ID: {txt(p.pId) || '-'}</div><div className="flex gap-2"><Phone size={12} /> Tel: {txt(p.pPhone) || '-'}</div></div></div>)}
                  {items.filter(i=>i.type==='people').length === 0 && <div className="text-center text-gray-400 py-10 bg-gray-50 rounded-xl border-2 border-dashed">尚無人員資料，請從下方新增。</div>}
               </div>
            </div>
@@ -740,7 +692,7 @@ function TravelApp() {
         {/* Info Tab */}
         {activeTab === 'info' && (
            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-2xl shadow-lg"><h2 className="text-2xl font-bold mb-2">{currentTrip.destination} 旅遊指南</h2><p className="opacity-90">{safeCity(currentTrip.destination).intro}</p></div>
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-2xl shadow-lg"><h2 className="text-2xl font-bold mb-2">{txt(currentTrip.destination)} 旅遊指南</h2><p className="opacity-90">{safeCity(currentTrip.destination).intro}</p></div>
               {['shopping', 'food', 'stay', 'transport'].map(catKey => {
                  const catLabel = CATEGORY_LABELS[catKey]; const spots = citySpots.filter(s => s.category === catKey);
                  if (spots.length === 0) return null;
@@ -765,23 +717,25 @@ function TravelApp() {
 
         {/* Bottom Input Bar */}
         {!checkInModal && !currentTrip.isLocked && activeTab !== 'info' && (
-          <form onSubmit={addItem} className="bg-white p-4 shadow-lg border-t sticky bottom-0 z-10 flex gap-2">
-            {activeTab === 'itinerary' && <button type="button" onClick={()=>setShowSpotSelector(true)} className="text-orange-500"><Star size={20}/></button>}
-            <div className="flex-1 flex gap-2">
-                {activeTab === 'people' ? (
-                    <div className="flex gap-2 w-full">
-                        <input className="flex-1 border p-2 rounded" placeholder="姓名" value={newItem.pName} onChange={e=>setNewItem({...newItem, pName:e.target.value})}/>
-                        <input className="w-20 border p-2 rounded" placeholder="房號" value={newItem.pRoom} onChange={e=>setNewItem({...newItem, pRoom:e.target.value})}/>
-                    </div>
-                ) : (
-                    <>
-                        {activeTab === 'budget' && <select value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})} className="border rounded text-xs"><option value="food">食</option><option value="shopping">衣</option><option value="stay">住</option><option value="transport">行</option></select>}
-                        <input className="flex-1 border p-2 rounded" placeholder={activeTab==='itinerary'?"行程名稱":"項目名稱"} value={newItem.title} onChange={e=>setNewItem({...newItem, title:e.target.value})}/>
-                        {(activeTab==='budget'||activeTab==='itinerary') && <input type="number" className="w-20 border p-2 rounded" placeholder="$" value={newItem.foreignCost} onChange={e=>handleForeignCostChange(e.target.value, newItem.currency)}/>}
-                    </>
-                )}
+          <form onSubmit={addItem} className="bg-white p-4 rounded-xl shadow-lg border flex flex-col gap-3 sticky bottom-4 z-10 print:hidden">
+            <div className="flex justify-between text-xs text-blue-500 font-bold"><span>{editingItem ? "✏️ 編輯項目" : (activeTab==='itinerary' ? `➕ 新增行程 (${newItem.date || '選擇日期'})` : activeTab==='people'?"➕ 新增人員":"➕ 新增")}</span>
+              <div className="flex gap-2">
+                {activeTab === 'itinerary' && <button type="button" onClick={()=>setShowSpotSelector(true)} className="text-orange-500 flex items-center gap-1 hover:text-orange-600"><Star size={12}/> 從推薦選擇</button>}
+                {editingItem && <button type="button" onClick={() => {setEditingItem(null); setNewItem({...newItem, title:''});}} className="text-gray-400">取消</button>}
+              </div>
             </div>
-            <button type="submit" className="bg-blue-600 text-white p-2 rounded"><Plus/></button>
+            {activeTab === 'people' ? (
+                <div className="grid grid-cols-2 gap-2"><input type="text" placeholder="姓名" className="p-2 bg-gray-50 rounded-lg text-sm" value={newItem.pName} onChange={e=>setNewItem({...newItem, pName:e.target.value})} required/><input type="text" placeholder="房號" className="p-2 bg-gray-50 rounded-lg text-sm" value={newItem.pRoom} onChange={e=>setNewItem({...newItem, pRoom:e.target.value})} /><input type="text" placeholder="證件號" className="p-2 bg-gray-50 rounded-lg text-sm" value={newItem.pId} onChange={e=>setNewItem({...newItem, pId:e.target.value})} /><input type="text" placeholder="電話" className="p-2 bg-gray-50 rounded-lg text-sm" value={newItem.pPhone} onChange={e=>setNewItem({...newItem, pPhone:e.target.value})} /></div>
+            ) : (
+                <div className="flex gap-2 items-center">
+                  {activeTab === 'budget' && <select value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})} className="bg-gray-50 text-xs p-2 rounded-lg outline-none w-20">{Object.entries(BUDGET_CATEGORIES).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}</select>}
+                  <input type="text" placeholder={activeTab==='itinerary'?"行程名稱 (如: 晚餐)":activeTab==='budget'?"消費項目":"物品名稱"} className="flex-1 p-2 bg-gray-50 rounded-lg outline-none focus:bg-white focus:ring-2 ring-blue-100" value={newItem.title} onChange={e => setNewItem({...newItem, title: e.target.value})} />
+                  {activeTab === 'itinerary' && <div className="flex gap-1"><input type="time" value={newItem.startTime} onChange={e=>setNewItem({...newItem, startTime: e.target.value})} className="w-20 p-2 bg-gray-50 rounded-lg text-xs"/><input type="text" placeholder="時長" value={newItem.duration} onChange={e=>setNewItem({...newItem, duration: e.target.value})} className="w-12 p-2 bg-gray-50 rounded-lg text-xs text-center"/></div>}
+                  {(activeTab === 'budget' || (activeTab === 'itinerary' && editingItem)) && <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border w-24"><input type="number" placeholder="$" className="w-full p-1 bg-transparent outline-none text-right font-bold text-blue-600" value={newItem.foreignCost} onChange={e => handleForeignCostChange(e.target.value, newItem.currency)} /></div>}
+                  {activeTab === 'packing' && <div className="flex items-center gap-1 bg-gray-50 px-2 rounded-lg border"><button type="button" onClick={()=>setNewItem({...newItem, quantity: Math.max(1, newItem.quantity-1)})}><Minus size={12}/></button><span className="text-xs font-bold w-4 text-center">{newItem.quantity}</span><button type="button" onClick={()=>setNewItem({...newItem, quantity: newItem.quantity+1})}><Plus size={12}/></button></div>}
+                </div>
+            )}
+            <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 w-full flex items-center justify-center gap-2">{editingItem ? <Edit2 size={16}/> : <Plus size={16}/>} {editingItem ? '儲存' : '新增'}</button>
           </form>
         )}
       </div>
